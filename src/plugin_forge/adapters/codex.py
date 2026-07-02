@@ -2,9 +2,12 @@
 
 Layout:
     .codex-plugin/plugin.json     (rich — includes `interface` block)
-    .codex-mcp.json               (mcpServers block, sibling of .codex-plugin)
+    .codex-mcp.json               (mcpServers block; or shared .mcp.json when
+                                   spec.options.shared_mcp_file is true)
+    hooks/hooks.json              (shared hook file, sibling of .codex-plugin)
 
-Shape verified against `0langas-plugin-marketplace/plugins/agent-handoff` (2026-07).
+Shape verified against `0langas-plugin-marketplace/plugins/agent-handoff` and
+`usage-pulse` (2026-07).
 """
 
 from __future__ import annotations
@@ -14,7 +17,12 @@ from typing import Any
 
 from plugin_forge.spec import ForgeSpec, Provider
 
-from ._common import base_header, render_mcp_servers, write_json
+from ._common import (
+    base_header,
+    render_hook_entries,
+    render_mcp_servers,
+    write_json,
+)
 
 
 def render_codex(spec: ForgeSpec) -> dict[str, Any]:
@@ -32,13 +40,21 @@ def render_codex(spec: ForgeSpec) -> dict[str, Any]:
         payload["interface"] = iface
 
     if active.mcp:
-        payload["mcpServers"] = "./.codex-mcp.json"
+        payload["mcpServers"] = "./.mcp.json" if spec.options.shared_mcp_file else "./.codex-mcp.json"
+    if active.hooks:
+        payload["hooks"] = "./hooks/hooks.json"
+    payload.update(spec.provider_extras.for_provider(Provider.CODEX))
     return payload
 
 
 def render_codex_mcp(spec: ForgeSpec) -> dict[str, Any]:
     servers = render_mcp_servers(spec, Provider.CODEX)
     return {"mcpServers": servers} if servers else {}
+
+
+def render_codex_hooks(spec: ForgeSpec) -> dict[str, Any]:
+    entries = render_hook_entries(spec, Provider.CODEX)
+    return {"hooks": entries} if entries else {}
 
 
 def _interface(spec: ForgeSpec) -> dict[str, Any]:
@@ -63,6 +79,8 @@ def _interface(spec: ForgeSpec) -> dict[str, Any]:
         iface["termsOfServiceURL"] = meta["terms_of_service_url"]
     if "default_prompt" in meta:
         iface["defaultPrompt"] = meta["default_prompt"]
+    if "brand_color" in meta:
+        iface["brandColor"] = meta["brand_color"]
     return iface
 
 
@@ -73,7 +91,20 @@ def _title(name: str) -> str:
 def write_codex(spec: ForgeSpec, out_root: Path) -> Path:
     plugin_path = out_root / ".codex-plugin" / "plugin.json"
     write_json(plugin_path, render_codex(spec))
+
     mcp = render_codex_mcp(spec)
     if mcp:
-        write_json(out_root / ".codex-mcp.json", mcp)
+        if spec.options.shared_mcp_file:
+            shared = out_root / ".mcp.json"
+            if not shared.exists():
+                write_json(shared, mcp)
+        else:
+            write_json(out_root / ".codex-mcp.json", mcp)
+
+    hooks = render_codex_hooks(spec)
+    if hooks:
+        target = out_root / "hooks" / "hooks.json"
+        if not target.exists():
+            write_json(target, hooks)
+
     return plugin_path

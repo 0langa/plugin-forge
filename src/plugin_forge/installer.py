@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
@@ -47,6 +47,7 @@ class InstallReport:
     manifest: Path
     settings_target: Path | None
     settings_patched: bool
+    warnings: list[str] = field(default_factory=list)
 
 
 IGNORE_PATTERNS = {".git", ".venv", ".venv-*", "__pycache__", ".pytest_cache", ".mypy_cache", "dist", "build", "*.egg-info"}
@@ -83,6 +84,8 @@ def install(
             patcher.apply(spec.name, settings_target, patch)
         settings_patched = True
 
+    warnings = _collision_warnings(repo)
+
     return InstallReport(
         provider=provider,
         target=target,
@@ -90,7 +93,30 @@ def install(
         manifest=manifest,
         settings_target=settings_target,
         settings_patched=settings_patched,
+        warnings=warnings,
     )
+
+
+def _collision_warnings(repo: Path) -> list[str]:
+    """Detect competing install machinery in the target plugin repo.
+
+    Emits warnings — never blocks — so the user can decide whether to keep or
+    remove the plugin's own installer.
+    """
+    warnings: list[str] = []
+    candidate = repo / "scripts" / "install.py"
+    if candidate.exists() and candidate.stat().st_size > 500:
+        try:
+            content = candidate.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return warnings
+        if "plugin_forge" not in content:
+            warnings.append(
+                f"plugin ships its own installer at {candidate.relative_to(repo).as_posix()}; "
+                "forge install runs alongside it — consider deleting the plugin's own installer "
+                "once forge install is verified equivalent"
+            )
+    return warnings
 
 
 def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True) -> bool:

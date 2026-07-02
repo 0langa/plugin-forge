@@ -1,10 +1,11 @@
 """Kimi Code plugin manifest.
 
 Layout:
-    kimi.plugin.json    (root — inline `interface`, `sessionStart`, `skillInstructions`,
-                         and inline `mcpServers` block)
+    kimi.plugin.json    (root — inline `interface`, `sessionStart`,
+                         `skillInstructions`, inline `mcpServers`, inline `hooks`)
 
-Shape verified against `0langas-plugin-marketplace/plugins/agent-handoff` (2026-07).
+Shape verified against `0langas-plugin-marketplace/plugins/agent-handoff` and
+`usage-pulse` (2026-07).
 """
 
 from __future__ import annotations
@@ -14,7 +15,12 @@ from typing import Any
 
 from plugin_forge.spec import ForgeSpec, Provider
 
-from ._common import base_header, render_mcp_servers, write_json
+from ._common import (
+    base_header,
+    render_hook_entries,
+    render_mcp_servers,
+    write_json,
+)
 
 
 def render_kimi(spec: ForgeSpec) -> dict[str, Any]:
@@ -42,6 +48,12 @@ def render_kimi(spec: ForgeSpec) -> dict[str, Any]:
     servers = render_mcp_servers(spec, Provider.KIMI)
     if servers:
         payload["mcpServers"] = servers
+
+    hook_entries = render_hook_entries(spec, Provider.KIMI)
+    if hook_entries:
+        payload["hooks"] = hook_entries
+
+    payload.update(spec.provider_extras.for_provider(Provider.KIMI))
     return payload
 
 
@@ -57,6 +69,8 @@ def _interface(spec: ForgeSpec) -> dict[str, Any]:
     }
     if "website_url" in meta or "homepage" in spec.metadata:
         iface["websiteURL"] = meta.get("website_url", spec.metadata.get("homepage"))
+    if "brand_color" in meta:
+        iface["brandColor"] = meta["brand_color"]
     return iface
 
 

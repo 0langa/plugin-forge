@@ -53,11 +53,25 @@ class AgentSurface(_Base):
 
 
 class HookSurface(_Base):
+    """Hook surface.
+
+    Either `script` (path to a Python file relative to the repo root — forge
+    renders it into the provider's expected command shape) or `command` (a
+    raw shell command; passed through verbatim) must be given.
+    """
+
     event: str
-    script: str
+    script: str | None = None
+    command: str | None = None
     providers: list[Provider] | None = None
     matcher: str | None = None
     timeout_seconds: int | None = None
+
+    @model_validator(mode="after")
+    def _script_or_command(self) -> HookSurface:
+        if not self.script and not self.command:
+            raise ValueError("hook must define either script or command")
+        return self
 
 
 class McpSurface(_Base):
@@ -91,6 +105,28 @@ class Marketplace(_Base):
     kimi_manifest: str | None = None
 
 
+class ProviderExtras(_Base):
+    """Passthrough bucket for provider-specific manifest keys forge does not
+    model explicitly (e.g. `defaultEnabled`, `brandColor`, `capabilities`).
+
+    Keys here are merged into the emitted provider manifest verbatim.
+    Preserves round-trip fidelity for hand-tuned manifests.
+    """
+
+    claude: dict[str, Any] = Field(default_factory=dict)
+    codex: dict[str, Any] = Field(default_factory=dict)
+    kimi: dict[str, Any] = Field(default_factory=dict)
+
+    def for_provider(self, provider: Provider) -> dict[str, Any]:
+        return getattr(self, provider.value)
+
+
+class Options(_Base):
+    shared_mcp_file: bool = False
+    """If true, Claude and Codex share a single `.mcp.json` file at the repo
+    root. If false (default), each provider gets its own file."""
+
+
 class ForgeSpec(_Base):
     """Root schema."""
 
@@ -103,6 +139,8 @@ class ForgeSpec(_Base):
     settings_patches: dict[str, Any] = Field(default_factory=dict)
     marketplace: Marketplace = Field(default_factory=Marketplace)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    provider_extras: ProviderExtras = Field(default_factory=ProviderExtras)
+    options: Options = Field(default_factory=Options)
 
     @field_validator("providers")
     @classmethod

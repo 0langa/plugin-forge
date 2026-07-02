@@ -63,3 +63,47 @@ def write_json(path: Path, payload: dict[str, Any]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+def render_hook_command(script: str, provider: Provider) -> str:
+    """Render a script-path hook into the inline shell command shape hosts expect.
+
+    Uses `py -3` on Windows-friendly path; each provider passes a plugin-root
+    env var that lets the hook resolve its own source at runtime.
+    """
+    root_var = {
+        Provider.CLAUDE: "CLAUDE_PLUGIN_ROOT",
+        Provider.CODEX: "CODEX_PLUGIN_ROOT",
+        Provider.KIMI: "KIMI_PLUGIN_ROOT",
+    }[provider]
+    script_norm = script.replace("\\", "/")
+    return (
+        "py -3 -c \"import os,runpy,sys; "
+        f"root=os.environ.get('{root_var}') or os.getcwd(); "
+        "sys.path.insert(0, os.path.join(root,'src')); "
+        f"runpy.run_path(os.path.join(root, {script_norm!r}), run_name='__main__')\""
+    )
+
+
+def render_hook_entries(spec, provider: Provider) -> list[dict[str, Any]]:
+    """Render every hook active on `provider` into the standard entry shape:
+
+        {"event": ..., "command": ..., "matcher"?, "timeout"?}
+    """
+    from plugin_forge.spec import ForgeSpec
+
+    assert isinstance(spec, ForgeSpec)
+    active = spec.surfaces_for_provider(provider).hooks
+    entries: list[dict[str, Any]] = []
+    for h in active:
+        entry: dict[str, Any] = {"event": h.event}
+        if h.command:
+            entry["command"] = h.command
+        else:
+            entry["command"] = render_hook_command(h.script or "", provider)
+        if h.matcher:
+            entry["matcher"] = h.matcher
+        if h.timeout_seconds:
+            entry["timeout"] = h.timeout_seconds
+        entries.append(entry)
+    return entries

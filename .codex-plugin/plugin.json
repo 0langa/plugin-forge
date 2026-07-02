@@ -31,5 +31,6 @@
     ],
     "websiteURL": "https://github.com/0langa/plugin-forge"
   },
-  "mcpServers": "./.codex-mcp.json"
+  "mcpServers": "./.codex-mcp.json",
+  "hooks": "./hooks/hooks.json"
 }
