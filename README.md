@@ -1,121 +1,249 @@
 # plugin-forge
 
-Multi-provider AI-coding plugin lifecycle automation.
+**Multi-provider AI-coding plugin lifecycle automation.**
 
-MCP server + hooks keep plugins for **Claude Code**, **Codex**, and **Kimi Code** automatically coherent while you edit source. Version bumps, manifest generation, cross-provider installs, marketplace registration, parity enforcement — all driven by a single canonical `forge.yaml` per plugin. Zero-touch during normal work.
+MCP server + hooks that keep plugins for **Claude Code**, **Codex**, and **Kimi Code** automatically coherent while you edit source. One canonical `forge.yaml` per plugin drives version bumps, manifest generation, cross-provider installs, marketplace registration, and parity enforcement. Zero-touch during normal work.
+
+---
 
 ## Why
 
 Every non-trivial multi-provider plugin has:
 
-- 3+ manifest files (Claude `plugin.json`, Codex config, Kimi `kimi.plugin.json`)
-- Per-provider install directories (`~/.claude/plugins/`, `~/.codex/plugins/`, kimi variant)
-- Settings.json patches (MCP registrations, hook wiring)
-- Version strings scattered across `pyproject.toml`, manifests, README badges, marketplace jsons
-- Hook + MCP + agent + command + skill surfaces that must stay in sync across providers
+- 3+ manifest files (Claude `.claude-plugin/plugin.json`, Codex `.codex-plugin/plugin.json`, Kimi `kimi.plugin.json`)
+- Per-provider install directories (`~/.claude/plugins/`, `~/.codex/plugins/`, `~/.kimi-code/plugins/`)
+- Settings.json patches (MCP registrations, hook wiring, timeouts)
+- Version strings scattered across `pyproject.toml`, three manifests, README badges, and two marketplace JSONs
+- Hook + MCP + agent + command + skill surfaces that must stay identical across providers
 
 Manually keeping this coherent = repeated 5-file hand-edits, silent drift, broken installs. Plugin-forge collapses all of it behind one spec + automation.
+
+---
 
 ## Design principles
 
 - **Automation-first.** Hooks + MCP tools do the work. Slash commands are escape hatches, not primary UX.
-- **Single source of truth.** `forge.yaml` per plugin. Adapters emit provider-specific manifests.
-- **Transactional installs.** Settings.json patched with backup + rollback + receipt-based uninstall.
-- **Fail-open hooks.** Nothing in forge is allowed to break the host session.
-- **Clean provider boundary.** Skill body porting belongs to `0langas-skill-center` (tri-client-skill-port). Forge owns topology, install, MCP, hooks, versioning, marketplace.
+- **Single source of truth.** `forge.yaml` per plugin. Adapters emit provider-specific manifests deterministically.
+- **Transactional installs.** Settings.json patched with backup + rollback + receipt-based exact uninstall.
+- **Fail-open hooks.** Nothing in forge is allowed to break the host session — every hook wraps its body in a safety net.
+- **Clean provider boundary.** Skill body porting is owned by `0langas-skill-center` (tri-client-skill-port). Forge owns topology, install, MCP, hooks, versioning, marketplace.
+- **Round-trip fidelity.** `forge.import` → `forge.compile` should never lose information. Unknown manifest keys go into `provider_extras` and re-emit verbatim.
 
-## What it does (surface)
+---
+
+## What it does
 
 ### MCP tools (model calls these implicitly when in a plugin repo)
 
-- `forge.status` — surfaces, install state, drift, marketplace sync
-- `forge.compile` — regen manifests from `forge.yaml`
-- `forge.import` — retrofit existing plugin → `forge.yaml`
-- `forge.sync` — enforce parity across providers
-- `forge.install` / `forge.uninstall` — transactional, per-provider
-- `forge.bump` — propagate version across manifests + marketplace jsons
-- `forge.release` — bump + tag + push + marketplace PR
-- `forge.audit_installed` — cross-provider inventory of installed plugins
-- `forge.mcp_dev` — spawn stdio MCP runner for iteration
-- `forge.hook_test` — synthetic-payload fire against hook script
-- `forge.register_marketplace` — add entry to marketplace jsons
+| Tool | Purpose |
+| --- | --- |
+| `forge.status` | Compact plugin-repo report: surfaces, install state, drift, marketplace sync, git |
+| `forge.compile` | Regenerate every provider manifest from `forge.yaml` |
+| `forge.import_repo` | Retrofit an existing plugin repo into a `forge.yaml` (best-effort sniff) |
+| `forge.sync_check` | Detect (and optionally fix) drift between spec and provider manifests |
+| `forge.install` | Install into one or all providers (link mode for dev, copy mode for frozen) |
+| `forge.uninstall` | Reverse install; settings.json patches rolled back exactly via receipts |
+| `forge.bump_version` | Propagate version across forge.yaml, pyproject, all manifests, README badge, CHANGELOG, marketplace jsons |
+| `forge.audit_installed` | Cross-provider inventory of every plugin installed on this machine |
+| `forge.hook_test` | Fire a hook script with a synthetic payload; return exit + stdout/stderr |
+| `forge.mcp_dev` | Print the command that would run the plugin's MCP server locally |
+| `forge.register_marketplace` | Upsert plugin entry into `plugins.json` + `kimi-marketplace.json` |
 
 ### Hooks (installed into host provider)
 
-- **SessionStart** — if cwd is inside a plugin repo, surface status banner + auto-audit
-- **PostToolUse (Edit/Write)** — if edited path is a manifest/hook/skill/mcp source, auto-recompile silently
-- **UserPromptSubmit** — inject curated plugin-state context (drift, pending bumps)
-- **PreCompact / Stop** — persist plugin state for next session
+- **SessionStart** — if cwd is inside a plugin repo, surface status banner and silently auto-fix manifest drift
+- **PostToolUse (Edit/Write)** — if the edited path is a manifest/hook/skill/mcp source, recompile provider manifests immediately
+- **UserPromptSubmit** — inject a curated `<plugin-forge>` context block with fresh drift/marketplace state
+- Every hook fail-open; errors go to `~/.plugin-forge/errors.log`, host session never breaks
 
 ### Git hooks (installed into target plugin repos)
 
 - **pre-commit** — block commit if provider manifests diverge from `forge.yaml`
-- **pre-push** — block push if marketplace jsons stale vs plugin version (bypass with `[skip-forge]`)
+- **pre-push** — block push if marketplace jsons stale vs plugin version
+- **Bypass**: `[skip-forge]` in commit message, or `--no-verify`
 
-### Skills (thin, single-call)
+### Skills (thin, single-call, only where actually needed)
 
 - `forge:using-forge` — session-start primer, activates only in plugin repos
-- `forge:release-plugin` — one-shot autonomous release (bump → tag → push → marketplace PR)
+- `forge:release-plugin` — one-shot autonomous release (bump → compile → commit → tag → push → GitHub release → marketplace update)
 - `forge:import-existing` — one-shot retrofit of an existing plugin
 
 ### Slash commands
 
 - `/forge` — status dashboard (rare use; hook banner covers 95%)
 
+---
+
 ## Canonical spec: `forge.yaml`
 
+Full example, based on the real `usage-pulse` shape:
+
 ```yaml
-name: my-plugin
-version: 1.2.0
+name: usage-pulse
+version: 0.1.0
+description: Local passive usage telemetry for Claude Code, Codex, and Kimi Code sessions.
 providers: [claude, codex, kimi]
 
 surfaces:
   skills:
-    - name: my-skill
-      path: skills/my-skill/SKILL.md
+    - name: using-pulse
+      path: skills/using-pulse/SKILL.md
+    - name: usage-report
+      path: skills/usage-report/SKILL.md
   commands:
-    - name: mycmd
-      path: commands/mycmd.md
-  agents:
-    - name: my-agent
-      path: agents/my-agent.md
+    - name: pulse
+      path: commands/pulse.md
   hooks:
     - event: SessionStart
       script: hooks/session_start.py
+      timeout_seconds: 10
+    - event: UserPromptSubmit
+      script: hooks/user_prompt_submit.py
+      timeout_seconds: 10
+    - event: PreToolUse
+      script: hooks/pre_tool_use.py
+      matcher: .*
+      timeout_seconds: 10
+    - event: PostToolUse
+      script: hooks/post_tool_use.py
+      matcher: .*
+      timeout_seconds: 10
+    - event: PreCompact
+      script: hooks/pre_compact.py
+      timeout_seconds: 10
+    - event: Stop
+      script: hooks/stop.py
+      timeout_seconds: 10
   mcp:
-    - name: my-plugin
+    - name: usage-pulse
       transport: stdio
-      package: python:./src/my_plugin/mcp_server.py
-      env: [MY_PLUGIN_HOME]
+      package: module:usage_pulse.mcp_server
 
 install:
-  claude: ~/.claude/plugins/my-plugin/
-  codex:  ~/.codex/plugins/my-plugin/
-  kimi:   ~/.kimi-code/plugins/my-plugin/
+  claude: ~/.claude/plugins/usage-pulse/
+  codex:  ~/.codex/plugins/usage-pulse/
+  kimi:   ~/.kimi-code/plugins/usage-pulse/
 
 settings_patches:
   mcpServers:
-    my-plugin:
-      command: "python"
-      args: ["-m", "my_plugin.mcp_server"]
+    usage-pulse:
+      command: uv
+      args: [run, --project, '{{target}}', usage-pulse-mcp]
 
 marketplace:
-  claude_manifest: "../0langas-plugin-marketplace/plugins.json"
-  kimi_manifest:   "../0langas-plugin-marketplace/kimi-marketplace.json"
+  claude_manifest: ../0langas-plugin-marketplace/plugins.json
+  kimi_manifest:   ../0langas-plugin-marketplace/kimi-marketplace.json
+
+options:
+  shared_mcp_file: true    # Claude + Codex both point at one .mcp.json
+
+metadata:
+  author: 0langa
+  license: MIT
+  homepage: https://github.com/0langa/usage-pulse
+  keywords: [usage, telemetry, local, mcp, hooks]
+  interface:
+    display_name: Usage Pulse
+    short_description: Local session usage telemetry
+    long_description: Passively records local per-session usage counters and exposes summaries through MCP.
+    developer_name: 0langa
+    category: Productivity
+    capabilities: [Read, Local, Automation]
+    brand_color: '#256D5A'
+  session_start_skill: pulse:using-pulse
+
+provider_extras:
+  claude:
+    defaultEnabled: true
+  # kimi-only or codex-only fields also live here; forge merges them verbatim
 ```
 
-## Install
+Emitted files after `forge compile`:
+
+```
+.claude-plugin/plugin.json    # thin, points at ./skills, ./commands, ./.mcp.json, ./hooks/hooks.json
+.codex-plugin/plugin.json     # rich, includes interface block, same references
+kimi.plugin.json              # inline mcpServers + inline hooks + sessionStart block
+.mcp.json                     # shared with Codex (because options.shared_mcp_file: true)
+hooks/hooks.json              # hook wiring for Claude + Codex
+```
+
+Emitted `hooks/session_start.py` commands use `CLAUDE_PLUGIN_ROOT` / `CODEX_PLUGIN_ROOT` / `KIMI_PLUGIN_ROOT` env vars to locate the plugin root at runtime.
+
+---
+
+## Quick start
+
+### New plugin
 
 ```bash
-cd C:\Users\Julius\source\repos\0langas-plugin-forge
-uv venv
-uv pip install -e .
-python scripts/install.py --provider all
+mkdir my-plugin && cd my-plugin
+# Write your source: hooks/, skills/, mcp/, commands/, etc.
+# Write forge.yaml (see example above)
+
+forge compile        # emit all provider manifests
+forge install        # link into ~/.claude, ~/.codex, ~/.kimi-code
 ```
+
+### Retrofit an existing plugin
+
+```bash
+cd path/to/existing-plugin
+forge import         # sniff manifests → write forge.yaml
+forge install-git-hooks   # add pre-commit + pre-push guards
+forge sync           # verify parity
+```
+
+### Cut a release
+
+```bash
+forge bump patch     # or minor / major
+forge sync --fix     # regenerate manifests if needed
+git add -A && git commit -m "release: v..."
+git tag v...
+git push --tags
+# Or ask the model to run the `release-plugin` skill for autonomous execution.
+```
+
+### Machine-wide audit
+
+```bash
+forge audit
+# Lists every plugin installed under ~/.claude, ~/.codex, ~/.kimi-code
+# with version + MCP + hooks registration state, orphans, and cross-provider gaps.
+```
+
+---
+
+## Install forge itself
+
+```bash
+git clone https://github.com/0langa/plugin-forge C:/Users/Julius/source/repos/0langa-plugin-forge
+cd 0langas-plugin-forge
+uv venv
+uv pip install -e ".[dev]"
+python scripts/install.py --mode link --provider all
+```
+
+After that, every provider has the `plugin-forge` MCP server registered and the SessionStart / PostToolUse / UserPromptSubmit hooks wired. Nothing else needs manual touch.
+
+---
+
+## Boundary with skill-center
+
+Skill-center (`0langas-skill-center`) owns single-skill operations: body porting between providers, trigger evaluation, skill curation.
+
+Forge owns plugin-level operations: manifests, installs, MCP wiring, hooks, versioning, marketplace, cross-provider parity. When forge needs a skill body ported, it delegates to skill-center's `tri-client-skill-port`.
+
+---
 
 ## Status
 
 Alpha. See [CHANGELOG.md](CHANGELOG.md).
+
+- 34 unit + integration tests passing
+- Round-trip verified against real `usage-pulse` plugin
+- Live install verification: pending on your machine
 
 ## License
 

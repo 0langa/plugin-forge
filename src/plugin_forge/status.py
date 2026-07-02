@@ -101,7 +101,11 @@ def probe(cwd: Path) -> RepoStatus:
 def _find_repo_root(cwd: Path) -> Path | None:
     cwd = cwd.resolve()
     for candidate in [cwd, *cwd.parents]:
-        if (candidate / ".git").exists() or (candidate / "forge.yaml").exists():
+        if (
+            (candidate / ".git").exists()
+            or (candidate / "forge.yaml").exists()
+            or _has_provider_manifest(candidate)
+        ):
             return candidate
     return None
 

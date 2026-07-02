@@ -18,7 +18,7 @@ One-shot retrofit. Turns a hand-crafted plugin repo into a forge-managed one wit
 2. **Report.** Show the user a compact summary of what was detected (providers, surfaces, MCP servers, hooks). Ask ONE clarifying question only if something looks clearly wrong (e.g., wrong plugin name, missing MCP server). Otherwise proceed.
 3. **Write.** Call `forge.import_repo(write=True)` to persist `forge.yaml` at the repo root.
 4. **Verify parity.** Call `forge.sync_check` to confirm the generated forge.yaml round-trips to the current manifests. If drift is reported, that's a bug in the importer or hand-edited manifests. Report drift; do NOT auto-fix on import (may erase intentional divergence).
-5. **Install git hooks.** Run the git-hook installer script (see `git_hook_templates/install.py` in the forge repo), which adds pre-commit + pre-push guards to the target repo's `.git/hooks/`. If the target already has hooks, chain rather than replace.
+5. **Install git hooks.** Run `python -m plugin_forge.git_hooks install <target_repo>` (or `forge install-git-hooks --repo <target_repo>` from the forge CLI). This copies `git_hook_templates/pre-commit` and `pre-push` into the target repo's `.git/hooks/`. If the target already has non-forge hooks, forge chains the new logic rather than replacing them.
 6. **Update .gitignore.** Add `.forge_state/` if not already present.
 7. **Summary.** One paragraph: what forge.yaml was written, what surfaces it covers, what to do next (usually: `forge.install(mode="link")` to link the plugin into all three providers).
 

@@ -223,45 +223,63 @@ def register_marketplace(
         return {"error": "marketplace repo not found; pass marketplace_repo=<path>"}
 
     changed: list[str] = []
+    notes: list[str] = []
     for name in ("plugins.json", "kimi-marketplace.json"):
         path_j = mkt_root / name
         if not path_j.exists():
             continue
         data = json.loads(path_j.read_text(encoding="utf-8"))
-        updated = _upsert_marketplace_entry(data, spec)
+        updated, note = _upsert_marketplace_entry(data, spec, name)
+        if note:
+            notes.append(f"{path_j.name}: {note}")
         if updated and not dry_run:
             path_j.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         if updated:
             changed.append(str(path_j))
-    return {"changed": changed, "dry_run": dry_run}
+    return {"changed": changed, "notes": notes, "dry_run": dry_run}
 
 
-def _upsert_marketplace_entry(root: object, spec: ForgeSpec) -> bool:
-    if isinstance(root, dict):
-        plugins = root.get("plugins")
-        if isinstance(plugins, list):
-            for entry in plugins:
-                if isinstance(entry, dict) and entry.get("name") == spec.name:
-                    if entry.get("version") == spec.version:
-                        return False
-                    entry["version"] = spec.version
-                    return True
-            plugins.append(
-                {
-                    "name": spec.name,
-                    "version": spec.version,
-                    "description": spec.description or spec.name,
-                }
-            )
-            return True
-        for v in root.values():
-            if _upsert_marketplace_entry(v, spec):
-                return True
-    elif isinstance(root, list):
-        for v in root:
-            if _upsert_marketplace_entry(v, spec):
-                return True
-    return False
+def _upsert_marketplace_entry(
+    data: dict[str, Any], spec: ForgeSpec, filename: str
+) -> tuple[bool, str | None]:
+    """Update an existing marketplace entry for `spec`; never auto-create.
+
+    Real marketplace schemas differ:
+        - `plugins.json` (Claude-style): entries keyed by `name`, with
+          `pluginRoot`, `installPaths`, `installCommands`, `providers`.
+        - `kimi-marketplace.json`: entries keyed by `id`, with `source`.
+
+    Forge only updates `version` (and optional `description`) on existing
+    entries. Adding a brand-new entry needs manual review — auto-appending a
+    bare stub would produce a broken marketplace.
+    """
+    plugins = data.get("plugins")
+    if not isinstance(plugins, list):
+        return False, "no plugins list found"
+
+    is_kimi = "kimi" in filename.lower()
+    key = "id" if is_kimi else "name"
+
+    for entry in plugins:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get(key) != spec.name:
+            continue
+        changed = False
+        if not is_kimi and "version" in entry and entry["version"] != spec.version:
+            entry["version"] = spec.version
+            changed = True
+        if not is_kimi and spec.description and entry.get("description") != spec.description:
+            entry["description"] = spec.description
+            changed = True
+        if changed:
+            return True, None
+        return False, "already up to date"
+
+    return False, (
+        f"plugin '{spec.name}' not present — add a full entry manually first "
+        f"(forge only updates existing entries to avoid breaking marketplace schema)"
+    )
 
 
 def _providers(spec: ForgeSpec, provider: str) -> list[Provider]:

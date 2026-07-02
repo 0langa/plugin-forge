@@ -24,6 +24,7 @@ from pathlib import Path
 
 from plugin_forge import patcher
 from plugin_forge.adapters import render_all
+from plugin_forge.registrars import registrar_for
 from plugin_forge.spec import ForgeSpec, Provider
 
 
@@ -47,6 +48,8 @@ class InstallReport:
     manifest: Path
     settings_target: Path | None
     settings_patched: bool
+    registry_path: Path | None = None
+    registry_updated: bool = False
     warnings: list[str] = field(default_factory=list)
 
 
@@ -86,6 +89,14 @@ def install(
 
     warnings = _collision_warnings(repo)
 
+    registry_path: Path | None = None
+    registry_updated = False
+    if not dry_run:
+        reg = registrar_for(provider)
+        report = reg.register(spec, target)
+        registry_path = report.registry
+        registry_updated = report.installed
+
     return InstallReport(
         provider=provider,
         target=target,
@@ -93,6 +104,8 @@ def install(
         manifest=manifest,
         settings_target=settings_target,
         settings_patched=settings_patched,
+        registry_path=registry_path,
+        registry_updated=registry_updated,
         warnings=warnings,
     )
 
@@ -128,6 +141,8 @@ def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True)
     settings_target = PROVIDER_SETTINGS.get(provider)
     if settings_target and settings_target.exists():
         patcher.unapply(spec.name, settings_target)
+
+    registrar_for(provider).unregister(spec.name)
 
     if remove_files and target.exists():
         link_marker = target / ".forge-link"
