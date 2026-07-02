@@ -1,0 +1,35 @@
+{
+  "name": "plugin-forge",
+  "version": "0.1.0",
+  "description": "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.",
+  "author": {
+    "name": "0langa"
+  },
+  "homepage": "https://github.com/0langa/plugin-forge",
+  "repository": "https://github.com/0langa/plugin-forge",
+  "license": "MIT",
+  "keywords": [
+    "plugin",
+    "lifecycle",
+    "claude-code",
+    "codex",
+    "kimi-code",
+    "automation"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "interface": {
+    "displayName": "Plugin Forge",
+    "shortDescription": "Cross-provider plugin lifecycle automation.",
+    "longDescription": "Automate plugin manifest generation, install, versioning, and marketplace registration across Claude Code, Codex, and Kimi Code. Zero-touch drift correction driven by hooks + MCP.",
+    "developerName": "0langa",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Planning"
+    ],
+    "websiteURL": "https://github.com/0langa/plugin-forge"
+  },
+  "mcpServers": "./.codex-mcp.json"
+}

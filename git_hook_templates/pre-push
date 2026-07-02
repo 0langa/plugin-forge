@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# plugin-forge pre-push guard.
+# Blocks push if marketplace jsons are stale vs the plugin version.
+# Bypass: git push --no-verify (or last commit contains [skip-forge]).
+
+set -e
+
+if git log -1 --pretty=%B 2>/dev/null | grep -q '\[skip-forge\]'; then
+    exit 0
+fi
+
+if ! command -v python >/dev/null 2>&1; then
+    exit 0
+fi
+
+python -m plugin_forge.git_hooks pre_push

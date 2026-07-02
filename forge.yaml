@@ -1,0 +1,80 @@
+name: plugin-forge
+version: 0.1.0
+description: Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.
+providers:
+  - claude
+  - codex
+  - kimi
+
+surfaces:
+  skills:
+    - name: using-forge
+      path: skills/using-forge/SKILL.md
+    - name: release-plugin
+      path: skills/release-plugin/SKILL.md
+    - name: import-existing
+      path: skills/import-existing/SKILL.md
+  commands:
+    - name: forge
+      path: commands/forge.md
+  hooks:
+    - event: SessionStart
+      script: src/plugin_forge/hooks/session_start.py
+    - event: PostToolUse
+      script: src/plugin_forge/hooks/post_tool_use.py
+    - event: UserPromptSubmit
+      script: src/plugin_forge/hooks/user_prompt_submit.py
+  mcp:
+    - name: plugin-forge
+      transport: stdio
+      package: module:plugin_forge.mcp_server
+
+install:
+  claude: ~/.claude/plugins/plugin-forge/
+  codex: ~/.codex/plugins/plugin-forge/
+  kimi: ~/.kimi-code/plugins/plugin-forge/
+
+settings_patches:
+  mcpServers:
+    plugin-forge:
+      command: uv
+      args:
+        - run
+        - python
+        - -m
+        - plugin_forge.mcp_server
+      cwd: '{{target}}'
+
+marketplace:
+  claude_manifest: ../0langas-plugin-marketplace/plugins.json
+  kimi_manifest: ../0langas-plugin-marketplace/kimi-marketplace.json
+
+metadata:
+  author: 0langa
+  license: MIT
+  homepage: https://github.com/0langa/plugin-forge
+  repository: https://github.com/0langa/plugin-forge
+  keywords:
+    - plugin
+    - lifecycle
+    - claude-code
+    - codex
+    - kimi-code
+    - automation
+  interface:
+    display_name: Plugin Forge
+    short_description: Cross-provider plugin lifecycle automation.
+    long_description: >-
+      Automate plugin manifest generation, install, versioning, and marketplace
+      registration across Claude Code, Codex, and Kimi Code. Zero-touch drift
+      correction driven by hooks + MCP.
+    developer_name: 0langa
+    category: Developer Tools
+    capabilities:
+      - Read
+      - Write
+      - Planning
+  session_start_skill: using-forge
+  skill_instructions: >-
+    In a plugin repo, prefer forge MCP tools over hand-editing manifests. Silent
+    success is the default; do not narrate forge internals to the user.

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# plugin-forge pre-commit guard.
+# Blocks commit if provider manifests diverge from forge.yaml.
+# Bypass: git commit --no-verify (or add [skip-forge] to the last commit message).
+
+set -e
+
+if git log -1 --pretty=%B 2>/dev/null | grep -q '\[skip-forge\]'; then
+    exit 0
+fi
+
+if ! command -v python >/dev/null 2>&1; then
+    exit 0
+fi
+
+python -m plugin_forge.git_hooks pre_commit

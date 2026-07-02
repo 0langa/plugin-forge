@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "plugin-forge": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "plugin_forge.mcp_server"
+      ],
+      "cwd": "./"
+    }
+  }
+}
