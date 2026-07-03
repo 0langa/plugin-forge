@@ -1,8 +1,8 @@
 """Cross-provider inventory of installed plugins on this machine.
 
-Walks `~/.claude/plugins/`, `~/.codex/plugins/`, `~/.kimi-code/plugins/`,
-reads each plugin's manifest, cross-references settings.json for MCP + hooks
-registration state, flags orphans and outdated versions.
+Walks `~/.claude/plugins/`, `~/.codex/plugins/`, and Kimi's managed plugin
+root, reads each plugin's manifest, checks manifest-owned or legacy global MCP
+and hook wiring, and flags orphans and cross-provider gaps.
 """
 
 from __future__ import annotations
@@ -10,14 +10,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 from plugin_forge.spec import Provider
-
 
 PROVIDER_ROOTS = {
     Provider.CLAUDE: Path.home() / ".claude" / "plugins",
     Provider.CODEX: Path.home() / ".codex" / "plugins",
-    Provider.KIMI: Path.home() / ".kimi-code" / "plugins",
+    Provider.KIMI: Path.home() / ".kimi-code" / "plugins" / "managed",
 }
 
 PROVIDER_SETTINGS = {
@@ -71,8 +71,8 @@ def run() -> AuditReport:
             name = data.get("name") or entry.name
             version = str(data.get("version", "?"))
             is_link = (entry / ".forge-link").exists()
-            mcp_ok = _mcp_registered(name, settings)
-            hooks_ok = _hooks_registered(entry, settings)
+            mcp_ok = _mcp_registered(name, settings, data)
+            hooks_ok = _hooks_registered(entry, settings, data)
             plugin = InstalledPlugin(
                 provider=provider,
                 name=name,
@@ -101,21 +101,28 @@ def _find_manifest(plugin_dir: Path, provider: Provider) -> Path | None:
     return candidate if candidate.exists() else None
 
 
-def _load_json(path: Path) -> dict:
+def _load_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
     except Exception:
         return {}
 
 
-def _mcp_registered(name: str, settings: dict) -> bool:
+def _mcp_registered(name: str, settings: dict[str, Any], manifest: dict[str, Any]) -> bool:
+    if "mcpServers" in manifest:
+        return True
     servers = settings.get("mcpServers")
     return isinstance(servers, dict) and name in servers
 
 
-def _hooks_registered(plugin_dir: Path, settings: dict) -> bool:
+def _hooks_registered(
+    plugin_dir: Path, settings: dict[str, Any], manifest: dict[str, Any]
+) -> bool:
+    if "hooks" in manifest:
+        return True
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):
         return False

@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """Install plugin-forge itself into every provider.
 
-Bootstraps forge: uses forge's own installer to install forge into
-~/.claude/plugins/plugin-forge, ~/.codex/plugins/plugin-forge, and
-~/.kimi-code/plugins/plugin-forge, and to register its MCP + hooks in each
-provider's settings.json.
+Bootstraps forge using forge's own installer. Provider hooks and MCP servers
+come from the generated plugin manifests, not from global settings patches.
 
 Run from the forge repo root:
     python scripts/install.py --mode link

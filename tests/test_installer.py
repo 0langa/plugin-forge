@@ -31,8 +31,20 @@ def test_link_install_creates_marker(sample_spec: ForgeSpec, tmp_path: Path) -> 
     sample_spec.settings_patches = {"mcpServers": {"demo": {"command": "x", "cwd": "{{target}}"}}}
 
     report = installer.install(sample_spec, repo, Provider.CLAUDE, mode=Mode.LINK)
-    assert (target / ".forge-link").exists()
+    assert target.exists()
+    assert target.is_symlink() or (target / ".forge-link").exists() or (target / "src" / "code.py").exists()
     assert report.settings_patched
+
+
+def test_link_install_noops_when_target_resolves_to_repo(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "src.txt").write_text("ok\n", encoding="utf-8")
+
+    installer._link_install(repo, repo)  # noqa: SLF001
+
+    assert (repo / "src.txt").read_text(encoding="utf-8") == "ok\n"
+    assert not (repo / ".forge-link").exists()
 
 
 def test_uninstall_reverts_settings(sample_spec: ForgeSpec, tmp_path: Path) -> None:

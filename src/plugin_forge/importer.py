@@ -22,12 +22,12 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import tomllib  # 3.11+
 except ImportError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[import-not-found]
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 from plugin_forge.spec import (
     AgentSurface,
@@ -43,7 +43,6 @@ from plugin_forge.spec import (
     SkillSurface,
     Surfaces,
 )
-
 
 KNOWN_MANIFEST_KEYS = {
     "name",
@@ -128,7 +127,8 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
     except Exception:
         return None
 
@@ -158,11 +158,11 @@ def _detect_version(repo: Path, canonical: dict[str, Any]) -> str:
     return "0.1.0"
 
 
-def _list_dir_surfaces(repo: Path, subdir: str, factory: Any) -> list:
+def _list_dir_surfaces(repo: Path, subdir: str, factory: Any) -> list[Any]:
     base = repo / subdir
     if not base.is_dir():
         return []
-    out: list = []
+    out: list[Any] = []
     for child in sorted(base.iterdir()):
         surface = factory(child)
         if surface is not None:
@@ -232,7 +232,7 @@ def _hooks_from_manifests(
     """
     seen: set[tuple[str, str]] = set()
     result: list[HookSurface] = []
-    for provider, manifest in manifests.items():
+    for manifest in manifests.values():
         if not manifest:
             continue
         raw = manifest.get("hooks")
@@ -284,7 +284,7 @@ def _extract_script_from_command(command: str) -> str | None:
     """
     matches = _SCRIPT_IN_CMD.findall(command)
     for m in matches:
-        norm = m.replace("\\", "/")
+        norm = str(m).replace("\\", "/")
         if norm.startswith("hooks/") or "/hooks/" in norm:
             return norm
     return None
@@ -360,7 +360,7 @@ def _guess_package(cfg: dict[str, Any], pyproject_scripts: dict[str, str]) -> st
             module = target.split(":", 1)[0]
             return f"module:{module}"
 
-    return cfg.get("command", "python")
+    return str(cfg.get("command", "python"))
 
 
 def _collect_metadata(manifests: dict[Provider, dict[str, Any] | None]) -> dict[str, Any]:
@@ -373,10 +373,10 @@ def _collect_metadata(manifests: dict[Provider, dict[str, Any] | None]) -> dict[
             if k in src and k not in metadata:
                 metadata[k] = src[k]
         iface = src.get("interface")
-        if iface and "interface" not in metadata:
+        if isinstance(iface, dict) and "interface" not in metadata:
             metadata["interface"] = _snakeify_interface(iface)
         session_start = src.get("sessionStart")
-        if session_start and "session_start_skill" not in metadata:
+        if isinstance(session_start, dict) and "session_start_skill" not in metadata:
             metadata["session_start_skill"] = session_start.get("skill")
         instructions = src.get("skillInstructions")
         if instructions and "skill_instructions" not in metadata:

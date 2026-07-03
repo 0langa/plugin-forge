@@ -66,18 +66,21 @@ def test_claude_hooks_sidecar(tmp_path: Path) -> None:
     plugin = json.loads((tmp_path / ".claude-plugin" / "plugin.json").read_text())
     assert plugin["hooks"] == "./hooks/hooks.json"
     sidecar = json.loads((tmp_path / "hooks" / "hooks.json").read_text())
-    assert len(sidecar["hooks"]) == 3
-    assert "CLAUDE_PLUGIN_ROOT" in sidecar["hooks"][0]["command"]
+    assert set(sidecar["hooks"]) == {"SessionStart", "PreToolUse", "Stop"}
+    assert "CLAUDE_PLUGIN_ROOT" in sidecar["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+    assert sidecar["hooks"]["PreToolUse"][0]["matcher"] == ".*"
+    assert sidecar["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"] == 10
 
 
-def test_codex_hooks_sidecar_reuses_claude_file(tmp_path: Path) -> None:
+def test_codex_hooks_sidecar_is_provider_specific(tmp_path: Path) -> None:
     spec = _spec_with_hooks()
     render_all(spec, tmp_path)
     plugin = json.loads((tmp_path / ".codex-plugin" / "plugin.json").read_text())
-    assert plugin["hooks"] == "./hooks/hooks.json"
-    sidecar_text = (tmp_path / "hooks" / "hooks.json").read_text()
-    assert "CLAUDE_PLUGIN_ROOT" in sidecar_text
+    assert plugin["hooks"] == "./hooks/codex-hooks.json"
+    sidecar_text = (tmp_path / "hooks" / "codex-hooks.json").read_text()
+    assert "PLUGIN_ROOT" in sidecar_text
     assert "CODEX_PLUGIN_ROOT" not in sidecar_text
+    assert "CLAUDE_PLUGIN_ROOT" in (tmp_path / "hooks" / "hooks.json").read_text()
 
 
 def test_shared_mcp_option(tmp_path: Path) -> None:

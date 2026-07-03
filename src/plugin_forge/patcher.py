@@ -23,8 +23,7 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-
+from typing import Any, cast
 
 RECEIPTS_DIR = Path.home() / ".plugin-forge" / "receipts"
 
@@ -70,7 +69,8 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
     except json.JSONDecodeError as exc:
         raise ValueError(f"target {path} is not valid JSON: {exc}") from exc
 
@@ -95,7 +95,7 @@ def apply(plugin: str, target: Path, patch: dict[str, Any], *, dry_run: bool = F
 
     target = target.resolve()
     original = _load_json(target)
-    merged = json.loads(json.dumps(original))
+    merged = cast(dict[str, Any], json.loads(json.dumps(original)))
 
     added_paths: list[list[str]] = []
     scalar_overrides: dict[str, Any] = {}
@@ -175,7 +175,9 @@ def unapply(plugin: str, target: Path) -> bool:
     rpath = _receipt_path(plugin, target)
     if not rpath.exists():
         return False
-    receipt = Receipt.from_json(json.loads(rpath.read_text(encoding="utf-8")))
+    receipt = Receipt.from_json(
+        cast(dict[str, Any], json.loads(rpath.read_text(encoding="utf-8")))
+    )
 
     if not receipt.target.exists():
         rpath.unlink(missing_ok=True)
@@ -233,7 +235,9 @@ def restore_from_backup(plugin: str, target: Path) -> bool:
     rpath = _receipt_path(plugin, target)
     if not rpath.exists():
         return False
-    receipt = Receipt.from_json(json.loads(rpath.read_text(encoding="utf-8")))
+    receipt = Receipt.from_json(
+        cast(dict[str, Any], json.loads(rpath.read_text(encoding="utf-8")))
+    )
     if not receipt.backup.exists():
         return False
     shutil.copy2(receipt.backup, receipt.target)

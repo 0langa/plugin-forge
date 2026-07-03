@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 from plugin_forge.adapters import render_for_provider
 from plugin_forge.spec import ForgeSpec, Provider
@@ -88,14 +89,15 @@ def fix(spec: ForgeSpec, repo: Path) -> SyncReport:
     return report
 
 
-def _load_json(path: Path) -> dict:
+def _load_json(path: Path) -> dict[str, Any]:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
     except Exception:
         return {}
 
 
-def _diff_summary(current: dict, expected: dict) -> str:
+def _diff_summary(current: dict[str, Any], expected: dict[str, Any]) -> str:
     cur_keys = set(current.keys())
     exp_keys = set(expected.keys())
     missing = sorted(exp_keys - cur_keys)

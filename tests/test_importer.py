@@ -4,9 +4,10 @@ from pathlib import Path
 
 from plugin_forge import importer
 from plugin_forge.adapters import render_all
+from plugin_forge.spec import ForgeSpec
 
 
-def test_import_roundtrip_from_rendered(sample_spec, tmp_path: Path) -> None:
+def test_import_roundtrip_from_rendered(sample_spec: ForgeSpec, tmp_path: Path) -> None:
     render_all(sample_spec, tmp_path)
     (tmp_path / "skills" / "do-thing").mkdir(parents=True, exist_ok=True)
     (tmp_path / "skills" / "do-thing" / "SKILL.md").write_text(

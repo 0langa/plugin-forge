@@ -10,9 +10,10 @@ from __future__ import annotations
 import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from plugin_forge import audit, sync
-from plugin_forge.spec import ForgeSpec, Provider
+from plugin_forge.spec import ForgeSpec
 
 
 @dataclass
@@ -23,7 +24,7 @@ class RepoStatus:
     name: str | None = None
     version: str | None = None
     providers: list[str] = field(default_factory=list)
-    drift: list[dict] = field(default_factory=list)
+    drift: list[dict[str, Any]] = field(default_factory=list)
     installed_providers: list[str] = field(default_factory=list)
     installed_versions: dict[str, str] = field(default_factory=dict)
     marketplace_synced: bool | None = None
@@ -32,7 +33,7 @@ class RepoStatus:
     git_dirty: bool = False
     notes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "repo": str(self.repo)}
 
     def banner(self) -> str:
@@ -50,7 +51,7 @@ class RepoStatus:
             parts.append("marketplace STALE")
         if self.git_dirty:
             parts.append("uncommitted")
-        return " · ".join(parts)
+        return " | ".join(parts)
 
 
 def probe(cwd: Path) -> RepoStatus:
@@ -69,7 +70,7 @@ def probe(cwd: Path) -> RepoStatus:
     status.git_branch, status.git_dirty = _git_state(repo)
 
     if not has_forge:
-        status.notes.append("no forge.yaml — run forge.import to retrofit")
+        status.notes.append("no forge.yaml - run forge.import to retrofit")
         return status
 
     try:

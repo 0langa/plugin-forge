@@ -1,47 +1,193 @@
 ---
 name: using-forge
-description: Session-start primer for plugin-forge. Activates when the current working directory is a plugin repo (has forge.yaml, .claude-plugin, .codex-plugin, or kimi.plugin.json). Explains how forge manages manifests, installs, and versions automatically so the model can operate confidently in the repo without asking the user to re-explain.
+description: Use this skill when maintaining a Forge-managed plugin, when checking manifest drift, when compiling provider files, when installing a dev copy, when validating hooks/MCP, or when auditing Claude/Codex/Kimi install state. Use proactively in Forge repos; automatically trigger on forge.yaml.
 ---
 
-# Using plugin-forge
+# Using Plugin Forge
 
-You are in a plugin repo that plugin-forge manages. Behavior contract:
+## Purpose
 
-## What forge does automatically (you rarely trigger it)
+Use Plugin Forge as the normal maintenance layer for Claude Code, Codex, and
+Kimi Code plugin repos. It owns plugin topology, generated manifests, install
+state, parity checks, and safe hook/MCP packaging.
 
-- **SessionStart hook** already printed a status banner with plugin name, version, installed providers, drift count, and marketplace sync state.
-- **PostToolUse hook** silently recompiles provider manifests when you edit `forge.yaml`, `pyproject.toml`, any provider `plugin.json`, `.mcp.json`, hooks, skills, agents, commands, or MCP source.
-- **UserPromptSubmit hook** injects a `<plugin-forge>` context block with fresh drift + marketplace state when relevant.
-- **Git hooks** in the plugin repo block commits with divergent manifests and pushes when marketplace jsons are stale (bypass: `[skip-forge]` in commit message).
+Prefer Forge whenever a task affects more than one provider surface.
+Examples include adding a skill, adding an MCP server, installing a dev copy,
+checking provider drift, or validating provider-specific hooks.
 
-## MCP tools you should reach for
+## Inputs
 
-Prefer these over hand-editing multiple files. Call implicitly when the user's intent matches.
+You receive a user request and the current repository. Treat this skill as active
+when the repo contains one of these files:
 
-- `forge.status` — current repo state. Use before answering "what version is this?", "is this installed?", "what's the drift?".
-- `forge.compile` — regenerate all provider manifests from forge.yaml. Idempotent.
-- `forge.sync_check(fix=True)` — enforce parity. Use if you edited `forge.yaml` and want to be sure manifests match.
-- `forge.import_repo` — retrofit a repo that lacks `forge.yaml`. Only run when a `forge.yaml` is missing.
-- `forge.install(provider="all", mode="link")` — install into all three providers as dev-link. `mode="copy"` for a frozen install.
-- `forge.uninstall(provider="all")` — clean reverse, uses install receipts.
-- `forge.bump_version(level="patch"|"minor"|"major")` — propagates version across forge.yaml, pyproject.toml, all provider manifests, README badge, CHANGELOG stub, marketplace jsons. Prefer this over hand-editing.
-- `forge.audit_installed` — machine-wide inventory of installed plugins across Claude Code / Codex / Kimi Code. Use when the user asks "what's installed" or "is X installed everywhere".
-- `forge.hook_test(event=...)` — synthetic-payload fire against a hook script.
-- `forge.mcp_dev` — print command to run the plugin's MCP server locally.
-- `forge.register_marketplace` — upsert plugin entry into marketplace jsons.
+```text
+forge.yaml
+.claude-plugin/plugin.json
+.codex-plugin/plugin.json
+kimi.plugin.json
+hooks/hooks.json
+.mcp.json
+```
 
-## When to use skills instead of MCP tools
+If `forge.yaml` exists, it is the source of truth. If it does not exist but
+provider manifests exist, use the `import-existing` skill instead.
 
-- User says "release" / "ship v1.2" / "cut a release" → use `forge:release-plugin` skill (one-shot: bump → compile → tag → push → marketplace).
-- User says "make this a forge plugin" / "retrofit this" / "import this" and `forge.yaml` is missing → use `forge:import-existing` skill.
-- Otherwise call MCP tools directly.
+## Tool Selection
 
-## Boundary (do not overreach)
+Use Forge MCP tools before hand-editing generated provider files.
 
-- Skill body porting between providers is owned by `0langas-skill-center`'s `tri-client-skill-port`. If the user asks to port a **skill** across providers, delegate. Forge handles plugin topology, not skill content.
-- Never edit provider manifests directly — call `forge.compile` or `forge.sync_check(fix=True)`.
-- Never patch settings.json by hand — use `forge.install` / `forge.uninstall`, which are transactional.
+```text
+Question about repo state       -> forge.status
+Regenerate provider manifests   -> forge.compile
+Check or fix manifest drift      -> forge.sync_check(fix=true)
+Install into providers          -> forge.install(provider="all", mode="link")
+Remove provider install         -> forge.uninstall(provider="all")
+Machine-wide install inventory  -> forge.audit_installed
+Synthetic hook validation       -> forge.hook_test(event="...")
+Local MCP runner command        -> forge.mcp_dev
+```
 
-## What not to talk about
+Use `release-plugin` for version bump, tag, push, or marketplace release work.
+Use `import-existing` only when a plugin repo lacks `forge.yaml`.
 
-Don't narrate forge internals to the user. Say what you're doing to the plugin, not that forge exists. Silent success is the default.
+## Operating Rules
+
+Read `forge.yaml` before editing provider manifests. Provider manifests are
+generated output unless the repo has not been imported yet.
+
+After changing `forge.yaml`, run:
+
+```powershell
+forge compile
+forge sync-check
+```
+
+After changing hook, skill, command, MCP, or manifest logic, run the repo's
+tests and at least one synthetic hook or MCP smoke test when available.
+
+When installing locally for development, use link mode:
+
+```powershell
+forge install --provider all --mode link
+```
+
+Use copy mode only for frozen install tests or release-like validation.
+
+## Output Format
+
+For user-facing status, keep output compact:
+
+```text
+Forge status: <plugin> v<version>, providers: Claude/Codex/Kimi, drift: none, installed: all.
+```
+
+For repair work:
+
+```text
+Fixed provider drift in <files>. Verified with forge sync-check and pytest.
+```
+
+For blocked work:
+
+```text
+Blocked: <specific provider/config reason>. No provider config was changed.
+```
+
+## Safety
+
+Do not patch Claude `installed_plugins.json` directly. Claude plugin install
+goes through a marketplace or skills-directory plugin discovery.
+
+Do not add Kimi hook blocks directly to `config.toml` for plugin hooks. Kimi
+plugin hooks live in `kimi.plugin.json`; install state lives in
+`~/.kimi-code/plugins/installed.json`.
+
+Do not add global Codex MCP blocks for a plugin whose `.codex-plugin/plugin.json`
+already points to bundled MCP configuration. Enable the plugin instead.
+
+Do not create RECALL memories from this repo unless the user explicitly asks.
+
+## Examples
+
+User: "Is this plugin installed everywhere?"
+
+Action:
+
+```text
+forge.status
+forge.audit_installed
+```
+
+Response: installed providers, missing providers, and drift state.
+
+User: "I added a hook, make sure all providers are updated."
+
+Action:
+
+```text
+forge.compile
+forge.sync_check(fix=true)
+pytest
+```
+
+Response: files changed and verification result.
+
+User: "Make this plugin safe for Kimi too."
+
+Action: check official Kimi docs, inspect `kimi.plugin.json`, verify MCP/hook
+paths stay inside plugin root, run `kimi doctor` after install.
+
+## Decision Matrix
+
+| Request | First action | Follow-up |
+| --- | --- | --- |
+| "What changed?" | `forge.status` | `git diff` only if status needs detail |
+| "Manifests drifted" | `forge.sync_check(fix=true)` | rerun tests |
+| "Install this locally" | `forge.install(provider="all", mode="link")` | provider reload |
+| "Hook seems broken" | `forge.hook_test(event="...")` | inspect error log |
+| "MCP missing" | `forge.mcp_dev` | run server command directly |
+| "Release it" | switch to `release-plugin` | do not continue here |
+
+## Verification Checklist
+
+For provider file changes:
+
+```powershell
+forge compile
+forge sync-check
+pytest
+```
+
+For hook changes:
+
+```powershell
+forge hook-test --event SessionStart
+forge hook-test --event PostToolUse
+```
+
+For MCP changes:
+
+```powershell
+forge mcp-dev
+```
+
+Run the printed MCP command once before reporting success.
+
+## Troubleshooting
+
+If manifests drift after compile, inspect the generated file and the corresponding
+adapter before editing the manifest by hand.
+
+If install breaks a provider, restore from the Forge backup or uninstall receipt
+before attempting a second install.
+
+If a provider docs shape is unclear, stop provider-specific edits and check the
+official docs before guessing.
+
+If a target plugin has its own installer, compare its behavior against Forge and
+remove duplicate global config mutation only after tests prove equivalence.
+
+## Related
+
+- `release-plugin`: release automation for Forge-managed plugin repos.
+- `import-existing`: one-time retrofit for hand-made plugin repos.

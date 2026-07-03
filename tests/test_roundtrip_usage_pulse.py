@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 
 from plugin_forge import importer
-from plugin_forge.spec import Provider
 
 PULSE = Path("C:/Users/Julius/source/repos/usage-pulse")
 
@@ -39,8 +38,6 @@ def test_importer_preserves_provider_extras() -> None:
     spec = importer.sniff(PULSE)
     claude = spec.provider_extras.claude
     assert claude.get("defaultEnabled") is True
-    codex = spec.provider_extras.codex
-    assert isinstance(codex.get("interface", {}).get("brandColor"), str) or True  # brandColor lives on interface
     kimi_manifest = json.loads((PULSE / "kimi.plugin.json").read_text())
     for key in kimi_manifest:
         if key in {
@@ -80,9 +77,10 @@ def test_sync_check_after_import_and_compile(tmp_path: Path) -> None:
     We do NOT overwrite the pulse repo. We copy the manifests into a scratch
     dir and re-render there.
     """
+    import shutil
+
     from plugin_forge import sync
     from plugin_forge.adapters import render_all
-    import shutil
 
     scratch = tmp_path / "pulse-mirror"
     scratch.mkdir()

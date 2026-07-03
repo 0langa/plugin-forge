@@ -55,6 +55,44 @@ def test_user_prompt_submit_injects_context_block(
     assert sample_spec.name in out
 
 
+def test_user_prompt_submit_uses_payload_cwd_for_kimi(
+    sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    sample_spec.dump(project / "forge.yaml")
+    render_all(sample_spec, project)
+
+    plugin_root = tmp_path / "plugin-root"
+    plugin_root.mkdir()
+    monkeypatch.chdir(plugin_root)
+    monkeypatch.setenv("KIMI_PLUGIN_ROOT", str(plugin_root))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps({"cwd": str(project)})))
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        user_prompt_submit._run()
+
+    assert "<plugin-forge>" in buf.getvalue()
+    assert sample_spec.name in buf.getvalue()
+
+
+def test_user_prompt_submit_silent_when_only_kimi_plugin_root(
+    sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sample_spec.dump(tmp_path / "forge.yaml")
+    render_all(sample_spec, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("KIMI_PLUGIN_ROOT", str(tmp_path))
+    monkeypatch.setattr("sys.stdin", io.StringIO("{}"))
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        user_prompt_submit._run()
+
+    assert buf.getvalue() == ""
+
+
 def test_post_tool_use_ignores_unrelated_edits(
     sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -14,9 +14,9 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Any
 
-from plugin_forge.hooks._safe import cwd_from_env, emit_banner, guard
-
+from plugin_forge.hooks._safe import cwd_from_payload_or_env, emit_banner, guard
 
 WATCHED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TRIGGER_SUFFIXES = (
@@ -48,7 +48,9 @@ def _run() -> None:
     if not _is_trigger_path(file_path):
         return
 
-    cwd = cwd_from_env()
+    cwd = cwd_from_payload_or_env(payload)
+    if cwd is None:
+        return
     st = status.probe(cwd)
     if not st.is_plugin_repo or not st.has_forge_yaml:
         return
@@ -68,7 +70,7 @@ def _run() -> None:
         emit_banner(f"recompiled {len(fixed.fixed)} manifest(s) after edit")
 
 
-def _extract_path(payload: dict) -> str:
+def _extract_path(payload: dict[str, Any]) -> str:
     ti = payload.get("tool_input") or {}
     if isinstance(ti, dict):
         return str(ti.get("file_path") or ti.get("path") or "")

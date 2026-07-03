@@ -4,7 +4,7 @@ Layout:
     .codex-plugin/plugin.json     (rich — includes `interface` block)
     .codex-mcp.json               (mcpServers block; or shared .mcp.json when
                                    spec.options.shared_mcp_file is true)
-    hooks/hooks.json              (shared hook file, sibling of .codex-plugin)
+    hooks/codex-hooks.json        (Codex hook file, sibling of .codex-plugin)
 
 Shape verified against `0langas-plugin-marketplace/plugins/agent-handoff` and
 `usage-pulse` (2026-07).
@@ -19,7 +19,7 @@ from plugin_forge.spec import ForgeSpec, Provider
 
 from ._common import (
     base_header,
-    render_hook_entries,
+    render_hooks_config,
     render_mcp_servers,
     write_json,
 )
@@ -42,7 +42,7 @@ def render_codex(spec: ForgeSpec) -> dict[str, Any]:
     if active.mcp:
         payload["mcpServers"] = "./.mcp.json" if spec.options.shared_mcp_file else "./.codex-mcp.json"
     if active.hooks:
-        payload["hooks"] = "./hooks/hooks.json"
+        payload["hooks"] = "./hooks/codex-hooks.json"
     payload.update(spec.provider_extras.for_provider(Provider.CODEX))
     return payload
 
@@ -53,8 +53,7 @@ def render_codex_mcp(spec: ForgeSpec) -> dict[str, Any]:
 
 
 def render_codex_hooks(spec: ForgeSpec) -> dict[str, Any]:
-    entries = render_hook_entries(spec, Provider.CODEX)
-    return {"hooks": entries} if entries else {}
+    return render_hooks_config(spec, Provider.CODEX)
 
 
 def _interface(spec: ForgeSpec) -> dict[str, Any]:
@@ -103,8 +102,6 @@ def write_codex(spec: ForgeSpec, out_root: Path) -> Path:
 
     hooks = render_codex_hooks(spec)
     if hooks:
-        target = out_root / "hooks" / "hooks.json"
-        if not target.exists():
-            write_json(target, hooks)
+        write_json(out_root / "hooks" / "codex-hooks.json", hooks)
 
     return plugin_path

@@ -8,7 +8,7 @@ import pytest
 try:
     import tomllib
 except ImportError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[import-not-found]
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 from plugin_forge.registrars import (
     ClaudeRegistrar,
@@ -43,12 +43,15 @@ def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def test_claude_registrar_creates_entry(isolated_home: Path) -> None:
     r = ClaudeRegistrar()
-    report = r.register(_spec("demo", "1.0.0"), isolated_home / "install")
+    report = r.register(
+        _spec("demo", "1.0.0"), isolated_home / "install", isolated_home / "source"
+    )
     assert report.installed is True
     data = json.loads(r.registry_path.read_text())
-    assert "demo@forge-local" in data["plugins"]
-    entry = data["plugins"]["demo@forge-local"][0]
+    assert data["name"] == "forge-local"
+    entry = next(p for p in data["plugins"] if p["name"] == "demo")
     assert entry["version"] == "1.0.0"
+    assert entry["source"] == str(isolated_home / "source")
 
 
 def test_claude_registrar_preserves_other_plugins(isolated_home: Path) -> None:
@@ -57,19 +60,16 @@ def test_claude_registrar_preserves_other_plugins(isolated_home: Path) -> None:
     r.registry_path.write_text(
         json.dumps(
             {
-                "version": 2,
-                "plugins": {
-                    "recall@0langas-plugins": [
-                        {"scope": "user", "installPath": "x", "version": "1.0.0"}
-                    ]
-                },
+                "name": "forge-local",
+                "owner": {"name": "0langa"},
+                "plugins": [{"name": "recall", "source": "x", "version": "1.0.0"}],
             }
         ),
         encoding="utf-8",
     )
     r.register(_spec(), isolated_home / "install")
     data = json.loads(r.registry_path.read_text())
-    assert "recall@0langas-plugins" in data["plugins"]
+    assert any(p["name"] == "recall" for p in data["plugins"])
 
 
 def test_claude_registrar_unregister(isolated_home: Path) -> None:
@@ -77,7 +77,7 @@ def test_claude_registrar_unregister(isolated_home: Path) -> None:
     r.register(_spec(), isolated_home / "install")
     assert r.unregister("demo") is True
     data = json.loads(r.registry_path.read_text())
-    assert not any(k.startswith("demo@") for k in data.get("plugins", {}))
+    assert not any(p.get("name") == "demo" for p in data.get("plugins", []))
 
 
 def test_codex_registrar_writes_toml(isolated_home: Path) -> None:
@@ -103,10 +103,13 @@ def test_codex_registrar_preserves_existing_config(isolated_home: Path) -> None:
 
 def test_kimi_registrar_appends_entry(isolated_home: Path) -> None:
     r = KimiRegistrar()
-    r.register(_spec(), isolated_home / "install")
+    r.register(_spec(), isolated_home / "install", isolated_home / "source")
     data = json.loads(r.registry_path.read_text())
     ids = [p["id"] for p in data["plugins"]]
     assert "demo" in ids
+    demo = next(p for p in data["plugins"] if p["id"] == "demo")
+    assert demo["root"] == str(isolated_home / "install")
+    assert demo["originalSource"] == str(isolated_home / "source")
 
 
 def test_kimi_registrar_updates_existing_id(isolated_home: Path) -> None:

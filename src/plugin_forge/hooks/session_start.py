@@ -6,16 +6,23 @@ drifted manifests silently and note the fix in the banner. Never prompts.
 
 from __future__ import annotations
 
+import json
 import sys
 
-from plugin_forge.hooks._safe import cwd_from_env, emit_banner, guard
+from plugin_forge.hooks._safe import cwd_from_payload_or_env, emit_banner, guard
 from plugin_forge.spec import ForgeSpec
 
 
 def _run() -> None:
     from plugin_forge import status, sync
 
-    cwd = cwd_from_env()
+    try:
+        payload = json.load(sys.stdin) if not sys.stdin.isatty() else {}
+    except Exception:
+        payload = {}
+    cwd = cwd_from_payload_or_env(payload)
+    if cwd is None:
+        return
     st = status.probe(cwd)
     if not st.is_plugin_repo:
         return

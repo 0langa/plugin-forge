@@ -71,28 +71,25 @@ def render_hook_command(script: str, provider: Provider) -> str:
     Uses `py -3` on Windows-friendly path; each provider passes a plugin-root
     env var that lets the hook resolve its own source at runtime.
     """
-    root_var = {
-        Provider.CLAUDE: "CLAUDE_PLUGIN_ROOT",
-        Provider.CODEX: "CODEX_PLUGIN_ROOT",
-        Provider.KIMI: "KIMI_PLUGIN_ROOT",
+    root_expr = {
+        Provider.CLAUDE: "os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT')",
+        Provider.CODEX: "os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT')",
+        Provider.KIMI: "os.environ.get('KIMI_PLUGIN_ROOT')",
     }[provider]
     script_norm = script.replace("\\", "/")
     return (
         "py -3 -c \"import os,runpy,sys; "
-        f"root=os.environ.get('{root_var}') or os.getcwd(); "
+        f"root={root_expr} or os.getcwd(); "
         "sys.path.insert(0, os.path.join(root,'src')); "
         f"runpy.run_path(os.path.join(root, {script_norm!r}), run_name='__main__')\""
     )
 
 
-def render_hook_entries(spec, provider: Provider) -> list[dict[str, Any]]:
+def render_hook_entries(spec: ForgeSpec, provider: Provider) -> list[dict[str, Any]]:
     """Render every hook active on `provider` into the standard entry shape:
 
         {"event": ..., "command": ..., "matcher"?, "timeout"?}
     """
-    from plugin_forge.spec import ForgeSpec
-
-    assert isinstance(spec, ForgeSpec)
     active = spec.surfaces_for_provider(provider).hooks
     entries: list[dict[str, Any]] = []
     for h in active:
@@ -107,3 +104,25 @@ def render_hook_entries(spec, provider: Provider) -> list[dict[str, Any]]:
             entry["timeout"] = h.timeout_seconds
         entries.append(entry)
     return entries
+
+
+def render_hooks_config(spec: ForgeSpec, provider: Provider) -> dict[str, Any]:
+    """Render Claude/Codex plugin hook sidecar shape.
+
+    Kimi uses flat inline hook entries. Claude and Codex use the nested
+    lifecycle config shape under a top-level `hooks` object.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for entry in render_hook_entries(spec, provider):
+        event = str(entry["event"])
+        command_hook: dict[str, Any] = {
+            "type": "command",
+            "command": entry["command"],
+        }
+        if "timeout" in entry:
+            command_hook["timeout"] = entry["timeout"]
+        matcher_entry: dict[str, Any] = {"hooks": [command_hook]}
+        if "matcher" in entry:
+            matcher_entry["matcher"] = entry["matcher"]
+        grouped.setdefault(event, []).append(matcher_entry)
+    return {"hooks": grouped} if grouped else {}

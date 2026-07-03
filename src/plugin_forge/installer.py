@@ -17,10 +17,12 @@ Both modes:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
+from typing import Any, cast
 
 from plugin_forge import patcher
 from plugin_forge.adapters import render_all
@@ -28,7 +30,7 @@ from plugin_forge.registrars import registrar_for
 from plugin_forge.spec import ForgeSpec, Provider
 
 
-class Mode(str, Enum):
+class Mode(StrEnum):
     LINK = "link"
     COPY = "copy"
 
@@ -53,7 +55,17 @@ class InstallReport:
     warnings: list[str] = field(default_factory=list)
 
 
-IGNORE_PATTERNS = {".git", ".venv", ".venv-*", "__pycache__", ".pytest_cache", ".mypy_cache", "dist", "build", "*.egg-info"}
+IGNORE_PATTERNS = {
+    ".git",
+    ".venv",
+    ".venv-*",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "dist",
+    "build",
+    "*.egg-info",
+}
 
 
 def install(
@@ -67,7 +79,7 @@ def install(
     target = _resolve_target(spec, provider)
     if not target:
         raise ValueError(f"install target for {provider.value} not defined in forge.yaml")
-    target = target.expanduser().resolve()
+    target = _absolute_without_following_links(target.expanduser())
 
     if not dry_run:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -93,7 +105,7 @@ def install(
     registry_updated = False
     if not dry_run:
         reg = registrar_for(provider)
-        report = reg.register(spec, target)
+        report = reg.register(spec, target, repo.resolve())
         registry_path = report.registry
         registry_updated = report.installed
 
@@ -136,7 +148,7 @@ def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True)
     target = _resolve_target(spec, provider)
     if not target:
         return False
-    target = target.expanduser().resolve()
+    target = _absolute_without_following_links(target.expanduser())
 
     settings_target = PROVIDER_SETTINGS.get(provider)
     if settings_target and settings_target.exists():
@@ -144,12 +156,12 @@ def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True)
 
     registrar_for(provider).unregister(spec.name)
 
-    if remove_files and target.exists():
+    if remove_files and (target.exists() or target.is_symlink()):
         link_marker = target / ".forge-link"
-        if link_marker.exists():
-            link_marker.unlink()
-            if not any(target.iterdir()):
-                target.rmdir()
+        if target.is_symlink():
+            target.unlink()
+        elif link_marker.exists():
+            shutil.rmtree(target, ignore_errors=True)
         else:
             shutil.rmtree(target, ignore_errors=True)
 
@@ -161,11 +173,45 @@ def _resolve_target(spec: ForgeSpec, provider: Provider) -> Path | None:
     return Path(raw) if raw else None
 
 
+def _absolute_without_following_links(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return Path.cwd() / path
+
+
 def _link_install(repo: Path, target: Path) -> None:
+    repo = repo.resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink():
+        if target.resolve() == repo:
+            return
+        target.unlink()
+    elif target.exists():
+        try:
+            if target.resolve() == repo:
+                return
+        except OSError:
+            pass
+        marker = target / ".forge-link"
+        if marker.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        else:
+            _copy_link_fallback(repo, target)
+            return
+    try:
+        os.symlink(repo, target, target_is_directory=True)
+    except OSError:
+        _copy_link_fallback(repo, target)
+
+
+def _copy_link_fallback(repo: Path, target: Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(
+        repo, target, ignore=shutil.ignore_patterns(*IGNORE_PATTERNS), dirs_exist_ok=True
+    )
     marker = target / ".forge-link"
     marker.write_text(
-        json.dumps({"source": str(repo.resolve())}, indent=2) + "\n",
+        json.dumps({"source": str(repo.resolve()), "mode": "copy-fallback"}, indent=2) + "\n",
         encoding="utf-8",
     )
 
@@ -178,9 +224,11 @@ def _copy_install(repo: Path, target: Path) -> None:
     )
 
 
-def _resolve_settings_patch(spec: ForgeSpec, provider: Provider, target: Path) -> dict:
+def _resolve_settings_patch(
+    spec: ForgeSpec, provider: Provider, target: Path
+) -> dict[str, Any]:
     """Return the patch with `{{target}}` placeholders resolved to the install path."""
     raw = json.dumps(spec.settings_patches)
     raw = raw.replace("{{target}}", str(target).replace("\\", "\\\\"))
     raw = raw.replace("{{provider}}", provider.value)
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))

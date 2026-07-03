@@ -1,0 +1,2 @@
+Import report fields: plugin name, providers, surfaces, drift, next install command.
+

@@ -41,7 +41,9 @@ def sample_spec() -> ForgeSpec:
 @pytest.fixture
 def tmp_repo(tmp_path: Path) -> Path:
     (tmp_path / "skills" / "do-thing").mkdir(parents=True)
-    (tmp_path / "skills" / "do-thing" / "SKILL.md").write_text("---\nname: do-thing\n---\nbody", encoding="utf-8")
+    (tmp_path / "skills" / "do-thing" / "SKILL.md").write_text(
+        "---\nname: do-thing\n---\nbody", encoding="utf-8"
+    )
     (tmp_path / "hooks").mkdir()
     (tmp_path / "hooks" / "session_start.py").write_text("print('ok')\n", encoding="utf-8")
     return tmp_path

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -49,7 +47,9 @@ def test_pre_commit_passes_when_no_forge_yaml(tmp_path: Path, monkeypatch: pytes
     assert git_hooks.pre_commit() == 0
 
 
-def test_pre_commit_passes_when_clean(sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pre_commit_passes_when_clean(
+    sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     sample_spec.dump(tmp_path / "forge.yaml")
     render_all(sample_spec, tmp_path)
     assert sync.check(sample_spec, tmp_path).is_clean
@@ -57,7 +57,12 @@ def test_pre_commit_passes_when_clean(sample_spec: ForgeSpec, tmp_path: Path, mo
     assert git_hooks.pre_commit() == 0
 
 
-def test_pre_commit_blocks_on_drift(sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_pre_commit_blocks_on_drift(
+    sample_spec: ForgeSpec,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     sample_spec.dump(tmp_path / "forge.yaml")
     monkeypatch.chdir(tmp_path)
     assert git_hooks.pre_commit() == 1

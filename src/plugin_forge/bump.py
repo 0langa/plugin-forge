@@ -14,7 +14,6 @@ from pathlib import Path
 
 from plugin_forge.spec import ForgeSpec
 
-
 SEMVER = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?P<rest>[-+][^ ]*)?$")
 
 

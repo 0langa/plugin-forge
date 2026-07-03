@@ -12,7 +12,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 HOOKS = ("pre-commit", "pre-push")
 
 

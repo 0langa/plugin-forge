@@ -1,45 +1,254 @@
 ---
 name: release-plugin
-description: One-shot autonomous release of a plugin managed by plugin-forge. Bumps version, regenerates provider manifests, updates marketplace jsons, writes a CHANGELOG stub, commits, tags, and pushes. Use when the user says "release this", "ship v1.2", "cut a release", "publish this plugin", or otherwise asks to release the plugin in the current repo. Do not use for skills — this is plugin-scoped.
+description: Use this skill when releasing a Forge-managed plugin, when bumping version, when tagging a release, when publishing marketplace metadata, or when the user asks to ship a Claude/Codex/Kimi plugin. Use proactively for release requests; automatically trigger on ship/publish/tag requests.
 ---
 
-# Release plugin
+# Release Plugin
 
-Autonomous release chain for a plugin-forge–managed plugin. Runs to completion without asking the user to confirm intermediate steps unless something is blocked or ambiguous.
+## Purpose
 
-## Preconditions (check first, in order)
+Release a plugin-forge managed plugin without hand-editing provider manifests.
+The expected result is a version bump, regenerated Claude/Codex/Kimi manifests,
+updated marketplace entries, a commit, a tag, and pushed release state.
 
-1. Current cwd is a plugin repo (call `forge.status`; `is_plugin_repo=true`, `has_forge_yaml=true`).
-2. `git_dirty=false`, or the user explicitly said to commit dirty state.
-3. `drift=[]` — if not, call `forge.sync_check(fix=True)` first.
+## Preconditions
 
-If any precondition fails and the user did not opt in, stop and report exactly what's blocking.
+Check these before mutation:
 
-## Steps
+```text
+forge.status -> is_plugin_repo=true, has_forge_yaml=true
+git status   -> clean unless user explicitly wants dirty state included
+forge.sync_check -> no drift, or drift repaired before release
+```
 
-1. **Decide level.** If the user named an explicit version ("v1.2.0"), pass `explicit`. Otherwise infer level from their words: "patch/hotfix" → patch, "minor/feature" → minor, "major/breaking" → major. Default to `patch` when unclear.
-2. **Bump.** Call `forge.bump_version(level=..., explicit=...)`. Read back the `files_changed` list.
-3. **Compile.** Call `forge.compile` to make sure every provider manifest is fresh.
-4. **Register marketplace.** Call `forge.register_marketplace`. Include `marketplace_repo` if `forge.status` shows marketplace_notes about missing repo.
-5. **Commit.** Stage the changed files (use `git add` for exactly the files returned by `bump_version` + any regenerated manifests). Commit message:
-   ```
-   release: v<new>
+If the repo is not Forge-managed, switch to `import-existing`.
+If the user is releasing only a single skill, use the skill-center workflow instead.
 
-   - <one-line summary of what changed>
-   ```
-   No `--amend`. No `--no-verify` (git hooks are forge's own guards).
-6. **Tag.** `git tag v<new>`.
-7. **Push.** `git push && git push --tags`.
-8. **GitHub release.** `gh release create v<new> --generate-notes` if `gh` is available; otherwise skip and note it.
-9. **Marketplace push.** If the marketplace repo is a separate git repo (typical), commit + push those jsons too.
+## Version Decision
 
-## After release
+Use the user's explicit version when present:
 
-Emit a short summary: version bumped, files changed, tag pushed, release URL if any. Nothing else.
+```text
+"release v1.2.0" -> explicit 1.2.0
+```
 
-## Failure modes
+Infer semantic level when no explicit version exists:
 
-- Bump fails → surface stderr, do nothing else.
-- Compile drift after bump → re-run `sync_check(fix=True)`; if still drifting, stop.
-- Push rejected (behind remote) → stop, tell user to pull, do not force.
-- gh missing → skip step 8, tell user to publish notes manually.
+```text
+hotfix, patch, typo, safety fix -> patch
+feature, new provider support   -> minor
+breaking, schema change         -> major
+unclear release request         -> patch
+```
+
+## Release Steps
+
+1. Run `forge.status`.
+2. Run `forge.sync_check(fix=true)` if drift exists.
+3. Run `forge.bump_version(level=...)` or explicit version equivalent.
+4. Run `forge.compile`.
+5. Run the repository test suite.
+6. Run a focused hook/MCP smoke test when the plugin has hooks or MCP servers.
+7. Run `forge.register_marketplace`.
+8. Stage only release-related files.
+9. Commit with:
+
+```text
+release: v<version>
+
+- <short release summary>
+```
+
+10. Tag with `v<version>`.
+11. Push branch and tag.
+12. Create a GitHub release with generated notes when `gh` is available.
+
+## Output Format
+
+Return a compact release report:
+
+```text
+Released v<version>.
+Changed: <files or surfaces>.
+Verified: <tests/eval/smoke checks>.
+Pushed: <branch>, tag v<version>.
+Release: <url or skipped reason>.
+```
+
+If blocked:
+
+```text
+Blocked before release: <specific reason>. No tag or push created.
+```
+
+## Safety
+
+Do not use `--no-verify` unless the user explicitly instructs it.
+Do not force-push release tags unless the user explicitly asks to move an existing tag.
+Do not publish marketplace changes when tests fail.
+Do not invent provider manifest fields; check official docs when provider shape matters.
+Do not directly edit Claude internal install cache, Kimi global hooks, or Codex global MCP blocks.
+
+## Examples
+
+User: "cut a patch release"
+
+Action:
+
+```text
+forge.status
+forge.sync_check(fix=true)
+forge.bump_version(level="patch")
+forge.compile
+pytest
+forge.register_marketplace
+git add <release files>
+git commit -m "release: v<version>"
+git tag v<version>
+git push && git push --tags
+```
+
+User: "publish this plugin once Kimi eval is over 90"
+
+Action: run PluginEval, improve skills if needed, verify score, then run release steps.
+
+## Decision Table
+
+| User phrase | Release level | Extra gate |
+| --- | --- | --- |
+| "hotfix this plugin" | patch | focused regression test |
+| "ship the safety fix" | patch | provider config smoke |
+| "release the new MCP tool" | minor | MCP server smoke |
+| "publish Kimi support" | minor | Kimi doctor and plugin reload |
+| "breaking schema change" | major | migration note |
+| "release v1.4.0" | explicit | exact version check |
+| "publish after eval over 90" | inferred | PluginEval gate |
+
+## Verification Matrix
+
+| Surface changed | Required check |
+| --- | --- |
+| `forge.yaml` | compile and sync-check |
+| Skill docs | PluginEval quick or standard |
+| Hook code | synthetic hook test |
+| MCP server | direct MCP server startup |
+| Provider install state | install in link mode |
+| Marketplace metadata | marketplace validation |
+
+## Commit Scope
+
+Stage only release-related files. Typical files:
+
+```text
+forge.yaml
+pyproject.toml
+.claude-plugin/plugin.json
+.codex-plugin/plugin.json
+kimi.plugin.json
+CHANGELOG.md
+marketplace json files
+```
+
+Do not stage unrelated working tree changes.
+
+## Rollback Plan
+
+If release fails before commit, keep changes in the working tree and fix them.
+
+If release fails after commit but before tag, create a new fix commit.
+
+If release fails after local tag but before push, delete the local tag and retry:
+
+```powershell
+git tag -d v<version>
+```
+
+If release fails after push, do not rewrite history without direct user approval.
+
+## Quality Gate
+
+Before publishing a marketplace-ready plugin, prefer this evidence:
+
+```text
+pytest passed
+PluginEval score over configured threshold
+provider install smoke passed
+MCP server starts
+hooks fail open
+```
+
+## Edge Cases
+
+Handle these cases explicitly:
+
+| Case | Action |
+| --- | --- |
+| Dirty tree with unrelated files | stop and list unrelated files |
+| Dirty tree with release files only | continue if user asked to include them |
+| Existing local tag | stop unless user asked to replace it |
+| Existing remote tag | stop; no force push without direct approval |
+| Marketplace repo dirty | stop and report marketplace repo path |
+| PluginEval below threshold | improve skill docs or report blocked |
+| Kimi plugin load error | fix install state before release |
+| Claude marketplace validation error | fix marketplace json before release |
+| Codex plugin validation error | fix `.codex-plugin/plugin.json` before release |
+
+## Provider Release Checks
+
+Claude release readiness:
+
+```text
+.claude-plugin/plugin.json exists
+hooks/hooks.json valid when hooks are bundled
+.mcp.json valid when MCP is bundled
+marketplace entry points at correct plugin source
+```
+
+Codex release readiness:
+
+```text
+.codex-plugin/plugin.json exists
+hook path stays inside plugin root
+MCP config stays inside plugin root
+plugin enabled state is not a global MCP duplicate
+```
+
+Kimi release readiness:
+
+```text
+kimi.plugin.json exists
+mcpServers use ./ paths or PATH commands
+hooks use plugin-root-relative commands
+installed.json entry uses id/root/source/enabled shape
+```
+
+## Final Sanity Pass
+
+Before final response, check:
+
+```text
+git status --short
+git log -1 --oneline
+git tag --list v<version>
+```
+
+If anything is still dirty after release, report it as follow-up work rather
+than hiding it.
+
+## Troubleshooting
+
+If `forge.sync_check` still reports drift after fixing, stop and inspect the adapter.
+
+If tests fail after version bump, keep the bump in the working tree and fix the test failure
+before committing.
+
+If push is rejected because the branch is behind remote, stop; do not rebase or force without
+user direction.
+
+If GitHub release creation fails because `gh` is unavailable or unauthenticated, finish the
+git release and report the skipped GitHub release.
+
+## Related
+
+- `using-forge`: normal work inside a Forge-managed plugin repo.
+- `import-existing`: retrofit before release when `forge.yaml` is missing.

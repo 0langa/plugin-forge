@@ -7,14 +7,13 @@ must never break because of forge.
 
 from __future__ import annotations
 
-import functools
 import os
 import sys
 import time
 import traceback
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 LOG_DIR = Path.home() / ".plugin-forge"
 ERROR_LOG = LOG_DIR / "errors.log"
@@ -41,6 +40,29 @@ def guard(fn: Callable[[], T]) -> int:
 
 def cwd_from_env() -> Path:
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())).resolve()
+
+
+def cwd_from_payload_or_env(payload: dict[str, Any] | None = None) -> Path | None:
+    payload = payload or {}
+    for key in ("cwd", "project_dir", "projectDir", "workspace", "workspace_dir"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return Path(value).resolve()
+
+    env_value = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env_value:
+        return Path(env_value).resolve()
+
+    cwd = Path(os.getcwd()).resolve()
+    plugin_roots = {
+        os.environ.get("KIMI_PLUGIN_ROOT"),
+        os.environ.get("PLUGIN_ROOT"),
+        os.environ.get("CLAUDE_PLUGIN_ROOT"),
+    }
+    for root in plugin_roots:
+        if root and cwd == Path(root).resolve():
+            return None
+    return cwd
 
 
 def emit_banner(text: str) -> None:

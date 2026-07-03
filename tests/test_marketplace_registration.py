@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -34,12 +35,15 @@ def _make_repo(tmp_path: Path, name: str, version: str) -> Path:
     return repo
 
 
-def _write_marketplaces(mkt: Path, existing_plugins: list[dict]) -> None:
+def _write_marketplaces(mkt: Path, existing_plugins: list[dict[str, Any]]) -> None:
     mkt.mkdir(parents=True, exist_ok=True)
     (mkt / "plugins.json").write_text(
         json.dumps({"plugins": existing_plugins}, indent=2), encoding="utf-8"
     )
-    kimi = [{"id": p["name"], "displayName": p.get("displayName", p["name"]), "source": "./x"} for p in existing_plugins]
+    kimi = [
+        {"id": p["name"], "displayName": p.get("displayName", p["name"]), "source": "./x"}
+        for p in existing_plugins
+    ]
     (mkt / "kimi-marketplace.json").write_text(
         json.dumps({"version": "2", "plugins": kimi}, indent=2), encoding="utf-8"
     )

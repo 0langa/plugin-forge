@@ -1,29 +1,177 @@
 ---
 name: import-existing
-description: Retrofit an existing plugin repo into a plugin-forge–managed plugin by generating forge.yaml from its current manifests, then installing forge's git hooks. Use when the user says "make this a forge plugin", "retrofit this", "import this plugin into forge", or when working in a repo that clearly is a plugin (has .claude-plugin/, .codex-plugin/, or kimi.plugin.json) but lacks forge.yaml.
+description: Use this skill when importing an existing plugin, when retrofitting Claude/Codex/Kimi manifests, when converting a hand-managed repo, when onboarding to Forge, or when forge.yaml is missing. Use proactively for retrofit requests; automatically trigger on import/convert/onboard requests.
 ---
 
-# Import existing plugin
+# Import Existing Plugin
 
-One-shot retrofit. Turns a hand-crafted plugin repo into a forge-managed one without changing existing behavior.
+## Purpose
+
+Convert a hand-managed plugin repo into a plugin-forge managed repo without
+changing behavior. The first import should preserve existing manifests, detect
+surfaces, create `forge.yaml`, install Forge git hooks, and report anything the
+importer could not model.
 
 ## Preconditions
 
-1. Current cwd is a plugin repo. Confirm via `forge.status` — `is_plugin_repo=true`.
-2. `forge.yaml` does NOT already exist. If it does, use `forge.sync_check` instead.
+Confirm the current repo is a plugin repo:
 
-## Steps
+```text
+.claude-plugin/plugin.json
+.codex-plugin/plugin.json
+kimi.plugin.json
+skills/
+hooks/
+.mcp.json
+```
 
-1. **Sniff.** Call `forge.import_repo(write=False)` first. Read the produced spec and sanity-check: does the plugin name match the repo, are all expected surfaces detected, do the MCP entries look sensible?
-2. **Report.** Show the user a compact summary of what was detected (providers, surfaces, MCP servers, hooks). Ask ONE clarifying question only if something looks clearly wrong (e.g., wrong plugin name, missing MCP server). Otherwise proceed.
-3. **Write.** Call `forge.import_repo(write=True)` to persist `forge.yaml` at the repo root.
-4. **Verify parity.** Call `forge.sync_check` to confirm the generated forge.yaml round-trips to the current manifests. If drift is reported, that's a bug in the importer or hand-edited manifests. Report drift; do NOT auto-fix on import (may erase intentional divergence).
-5. **Install git hooks.** Run `python -m plugin_forge.git_hooks install <target_repo>` (or `forge install-git-hooks --repo <target_repo>` from the forge CLI). This copies `git_hook_templates/pre-commit` and `pre-push` into the target repo's `.git/hooks/`. If the target already has non-forge hooks, forge chains the new logic rather than replacing them.
-6. **Update .gitignore.** Add `.forge_state/` if not already present.
-7. **Summary.** One paragraph: what forge.yaml was written, what surfaces it covers, what to do next (usually: `forge.install(mode="link")` to link the plugin into all three providers).
+If `forge.yaml` already exists, do not import again. Use `using-forge` and
+`forge.sync_check` instead.
 
-## Do not
+## Import Steps
 
-- Regenerate manifests during import — that risks erasing hand-tuned fields the sniffer missed.
-- Commit anything. Let the user review the diff and commit.
-- Bump the version. Import is not a release.
+1. Run `forge.status`.
+2. Run `forge.import_repo(write=false)`.
+3. Inspect the generated spec for plugin name, provider list, skills, hooks,
+   MCP servers, command files, install targets, and provider extras.
+4. Ask one short clarification only if the detected plugin name or surface set
+   is clearly wrong.
+5. Run `forge.import_repo(write=true)`.
+6. Run `forge.sync_check` without auto-fix.
+7. Install Forge git hooks:
+
+```powershell
+python -m plugin_forge.git_hooks install <target-repo>
+```
+
+8. Add `.forge_state/` to `.gitignore` if missing.
+9. Run the repo's existing tests.
+
+## Output Format
+
+Return a compact import report:
+
+```text
+Imported <plugin-name> into forge.yaml.
+Providers: Claude, Codex, Kimi.
+Surfaces: <skills, hooks, MCP, commands>.
+Drift: <none or list>.
+Next: forge install --provider all --mode link.
+```
+
+If blocked:
+
+```text
+Blocked: <specific missing or ambiguous input>. No manifests regenerated.
+```
+
+## Preservation Rules
+
+Do not regenerate manifests during first import unless the user explicitly asks.
+Do not erase provider-specific fields; keep unknown fields in provider extras.
+Do not bump version during import.
+Do not commit the import automatically.
+Do not rewrite installer scripts until Forge install has been tested against them.
+
+## Validation
+
+After writing `forge.yaml`, verify that a fresh render would not remove important
+provider-specific behavior:
+
+```text
+forge.sync_check
+pytest
+```
+
+For plugins with hooks, run one synthetic hook test. For plugins with MCP, run
+the MCP server directly or use `forge.mcp_dev`.
+
+## Examples
+
+User: "make this hand-built plugin a forge plugin"
+
+Action:
+
+```text
+forge.status
+forge.import_repo(write=false)
+forge.import_repo(write=true)
+forge.sync_check
+python -m plugin_forge.git_hooks install .
+pytest
+```
+
+User: "import usage-pulse into forge"
+
+Action: detect Claude/Codex/Kimi manifests, preserve Kimi `mcpServers` and
+`hooks`, create `forge.yaml`, then compare generated output in a scratch dir
+before allowing Forge to own live manifests.
+
+## Detection Matrix
+
+| File or directory | Meaning |
+| --- | --- |
+| `.claude-plugin/plugin.json` | Claude plugin manifest |
+| `.codex-plugin/plugin.json` | Codex plugin manifest |
+| `kimi.plugin.json` | Kimi plugin manifest |
+| `.mcp.json` | bundled MCP server config |
+| `hooks` directory | bundled hook scripts or configs |
+| `skills` directory | plugin skills |
+| `commands` directory | slash or command files |
+| `agents` directory | subagent definitions |
+
+## Scratch Render Check
+
+When the plugin is risky, render to a scratch directory first:
+
+```powershell
+forge import-repo --write
+forge compile --out <scratch>
+```
+
+Compare scratch output against current manifests. Preserve fields that matter.
+
+## Import Report Fields
+
+Include these fields in the final report:
+
+```text
+plugin name
+provider manifests found
+skills detected
+hooks detected
+MCP servers detected
+provider extras preserved
+drift result
+next install command
+```
+
+## Manual Repair Cases
+
+If a provider manifest contains a field Forge does not model, place it under
+provider extras.
+
+If hooks differ by provider, keep provider-specific hook sidecars rather than
+sharing one file blindly.
+
+If a local installer mutates global config, keep it until Forge install has an
+equivalent safe path and tests prove rollback.
+
+If Kimi install state is involved, check the managed plugin root and
+`installed.json` shape before launch.
+
+## Troubleshooting
+
+If the importer misses a surface, add it to `forge.yaml` manually and run
+`forge.sync_check` again.
+
+If generated output differs from a hand-tuned manifest, preserve the hand-tuned
+fields through `provider_extras`.
+
+If provider docs conflict with current manifests, check the official provider
+docs and report the concrete mismatch before changing behavior.
+
+## Related
+
+- `using-forge`: normal work after import.
+- `release-plugin`: release flow after import and validation.

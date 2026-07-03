@@ -1,0 +1,2 @@
+Release report fields: version, changed files, verification, pushed branch, pushed tag, release URL.
+

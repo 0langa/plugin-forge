@@ -23,7 +23,7 @@ from plugin_forge.spec import ForgeSpec, Provider
 
 from ._common import (
     base_header,
-    render_hook_entries,
+    render_hooks_config,
     render_mcp_servers,
     write_json,
 )
@@ -52,8 +52,7 @@ def render_claude_mcp(spec: ForgeSpec) -> dict[str, Any]:
 
 
 def render_claude_hooks(spec: ForgeSpec) -> dict[str, Any]:
-    entries = render_hook_entries(spec, Provider.CLAUDE)
-    return {"hooks": entries} if entries else {}
+    return render_hooks_config(spec, Provider.CLAUDE)
 
 
 def write_claude(spec: ForgeSpec, out_root: Path) -> Path:

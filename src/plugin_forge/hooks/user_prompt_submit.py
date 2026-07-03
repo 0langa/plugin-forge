@@ -7,15 +7,22 @@ the current repo is a plugin repo with something worth surfacing.
 
 from __future__ import annotations
 
+import json
 import sys
 
-from plugin_forge.hooks._safe import cwd_from_env, guard
+from plugin_forge.hooks._safe import cwd_from_payload_or_env, guard
 
 
 def _run() -> None:
     from plugin_forge import status
 
-    cwd = cwd_from_env()
+    try:
+        payload = json.load(sys.stdin) if not sys.stdin.isatty() else {}
+    except Exception:
+        payload = {}
+    cwd = cwd_from_payload_or_env(payload)
+    if cwd is None:
+        return
     st = status.probe(cwd)
     if not st.is_plugin_repo or not st.has_forge_yaml:
         return
@@ -23,7 +30,7 @@ def _run() -> None:
     lines: list[str] = []
     header = f"plugin-forge context: {st.name} v{st.version}"
     installed = "+".join(st.installed_providers) if st.installed_providers else "none"
-    lines.append(f"{header} · declared providers: {'+'.join(st.providers)} · installed: {installed}")
+    lines.append(f"{header}; declared providers: {'+'.join(st.providers)}; installed: {installed}")
 
     if st.drift:
         drift_summary = "; ".join(

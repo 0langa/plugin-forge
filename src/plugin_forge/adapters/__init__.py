@@ -8,6 +8,7 @@ Shapes verified against production plugins in `0langas-plugin-marketplace`
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from plugin_forge.spec import ForgeSpec, Provider
 
@@ -18,7 +19,7 @@ from .kimi import render_kimi
 __all__ = ["render_all", "render_for_provider", "render_claude", "render_codex", "render_kimi"]
 
 
-def render_for_provider(spec: ForgeSpec, provider: Provider) -> dict[str, object]:
+def render_for_provider(spec: ForgeSpec, provider: Provider) -> dict[str, Any]:
     if provider is Provider.CLAUDE:
         return render_claude(spec)
     if provider is Provider.CODEX:

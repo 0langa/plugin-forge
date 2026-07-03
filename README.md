@@ -12,7 +12,7 @@ Every non-trivial multi-provider plugin has:
 
 - 3+ manifest files (Claude `.claude-plugin/plugin.json`, Codex `.codex-plugin/plugin.json`, Kimi `kimi.plugin.json`)
 - Per-provider install directories (`~/.claude/plugins/`, `~/.codex/plugins/`, `~/.kimi-code/plugins/`)
-- Settings.json patches (MCP registrations, hook wiring, timeouts)
+- Provider plugin manifests (MCP registrations, hook wiring, timeouts)
 - Version strings scattered across `pyproject.toml`, three manifests, README badges, and two marketplace JSONs
 - Hook + MCP + agent + command + skill surfaces that must stay identical across providers
 
@@ -24,7 +24,7 @@ Manually keeping this coherent = repeated 5-file hand-edits, silent drift, broke
 
 - **Automation-first.** Hooks + MCP tools do the work. Slash commands are escape hatches, not primary UX.
 - **Single source of truth.** `forge.yaml` per plugin. Adapters emit provider-specific manifests deterministically.
-- **Transactional installs.** Settings.json patched with backup + rollback + receipt-based exact uninstall.
+- **Manifest-owned installs.** Provider discovery files own MCP and hook wiring; global settings patches are a legacy escape hatch, not the default path.
 - **Fail-open hooks.** Nothing in forge is allowed to break the host session — every hook wraps its body in a safety net.
 - **Clean provider boundary.** Skill body porting is owned by `0langas-skill-center` (tri-client-skill-port). Forge owns topology, install, MCP, hooks, versioning, marketplace.
 - **Round-trip fidelity.** `forge.import` → `forge.compile` should never lose information. Unknown manifest keys go into `provider_extras` and re-emit verbatim.
@@ -42,7 +42,7 @@ Manually keeping this coherent = repeated 5-file hand-edits, silent drift, broke
 | `forge.import_repo` | Retrofit an existing plugin repo into a `forge.yaml` (best-effort sniff) |
 | `forge.sync_check` | Detect (and optionally fix) drift between spec and provider manifests |
 | `forge.install` | Install into one or all providers (link mode for dev, copy mode for frozen) |
-| `forge.uninstall` | Reverse install; settings.json patches rolled back exactly via receipts |
+| `forge.uninstall` | Reverse install; legacy settings patches are rolled back exactly via receipts |
 | `forge.bump_version` | Propagate version across forge.yaml, pyproject, all manifests, README badge, CHANGELOG, marketplace jsons |
 | `forge.audit_installed` | Cross-provider inventory of every plugin installed on this machine |
 | `forge.hook_test` | Fire a hook script with a synthetic payload; return exit + stdout/stderr |
@@ -122,13 +122,7 @@ surfaces:
 install:
   claude: ~/.claude/plugins/usage-pulse/
   codex:  ~/.codex/plugins/usage-pulse/
-  kimi:   ~/.kimi-code/plugins/usage-pulse/
-
-settings_patches:
-  mcpServers:
-    usage-pulse:
-      command: uv
-      args: [run, --project, '{{target}}', usage-pulse-mcp]
+  kimi:   ~/.kimi-code/plugins/managed/usage-pulse/
 
 marketplace:
   claude_manifest: ../0langas-plugin-marketplace/plugins.json
@@ -164,11 +158,13 @@ Emitted files after `forge compile`:
 .claude-plugin/plugin.json    # thin, points at ./skills, ./commands, ./.mcp.json, ./hooks/hooks.json
 .codex-plugin/plugin.json     # rich, includes interface block, same references
 kimi.plugin.json              # inline mcpServers + inline hooks + sessionStart block
-.mcp.json                     # shared with Codex (because options.shared_mcp_file: true)
-hooks/hooks.json              # hook wiring for Claude + Codex
+.mcp.json                     # Claude MCP file
+.codex-mcp.json               # Codex MCP file, unless options.shared_mcp_file is true
+hooks/hooks.json              # hook wiring for Claude
+hooks/codex-hooks.json        # hook wiring for Codex
 ```
 
-Emitted `hooks/session_start.py` commands use `CLAUDE_PLUGIN_ROOT` / `CODEX_PLUGIN_ROOT` / `KIMI_PLUGIN_ROOT` env vars to locate the plugin root at runtime.
+Emitted hook commands use the official runtime root variables: `CLAUDE_PLUGIN_ROOT` for Claude, `PLUGIN_ROOT` for Codex, and `KIMI_PLUGIN_ROOT` for Kimi. Compatibility fallbacks are only used where provider docs expose them.
 
 ---
 
@@ -225,7 +221,7 @@ uv pip install -e ".[dev]"
 python scripts/install.py --mode link --provider all
 ```
 
-After that, every provider has the `plugin-forge` MCP server registered and the SessionStart / PostToolUse / UserPromptSubmit hooks wired. Nothing else needs manual touch.
+After that, every provider discovers the `plugin-forge` MCP server and SessionStart / PostToolUse / UserPromptSubmit hooks from the installed plugin manifests. No global MCP or hook settings are written by the forge self-install path.
 
 ---
 
@@ -241,7 +237,7 @@ Forge owns plugin-level operations: manifests, installs, MCP wiring, hooks, vers
 
 Alpha. See [CHANGELOG.md](CHANGELOG.md).
 
-- 34 unit + integration tests passing
+- 84 unit + integration tests passing
 - Round-trip verified against real `usage-pulse` plugin
 - Live install verification: pending on your machine
 

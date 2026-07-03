@@ -19,7 +19,6 @@ from plugin_forge.adapters import render_all
 from plugin_forge.installer import Mode
 from plugin_forge.spec import ForgeSpec, Provider
 
-
 mcp = FastMCP("plugin-forge")
 
 
@@ -165,6 +164,8 @@ def hook_test(path: str | None = None, event: str = "SessionStart") -> dict[str,
     if not matches:
         return {"error": f"no hook registered for event {event}"}
     hook = matches[0]
+    if hook.script is None:
+        return {"error": f"hook for event {event} is command-based; script test unavailable"}
     script = repo / hook.script
     payload = json.dumps({"event": event, "cwd": str(repo), "synthetic": True})
     completed = subprocess.run(

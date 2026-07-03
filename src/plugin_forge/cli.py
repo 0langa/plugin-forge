@@ -39,7 +39,8 @@ def status(path: str | None) -> None:
     """Print combined plugin-repo status as JSON."""
     from plugin_forge import status as st
 
-    click.echo(json.dumps(st.probe(Path(path).resolve() if path else Path.cwd().resolve()).to_dict(), indent=2, default=str))
+    repo = Path(path).resolve() if path else Path.cwd().resolve()
+    click.echo(json.dumps(st.probe(repo).to_dict(), indent=2, default=str))
 
 
 @cli.command()
@@ -101,7 +102,10 @@ def install(path: str | None, provider: str, mode: str, dry_run: bool) -> None:
     providers = list(spec.providers) if provider == "all" else [Provider(provider)]
     for prov in providers:
         r = installer.install(spec, repo, prov, mode=Mode(mode), dry_run=dry_run)
-        click.echo(f"{r.provider.value} → {r.target} ({r.mode.value}, settings_patched={r.settings_patched})")
+        click.echo(
+            f"{r.provider.value} -> {r.target} "
+            f"({r.mode.value}, settings_patched={r.settings_patched})"
+        )
 
 
 @cli.command()
@@ -124,7 +128,7 @@ def bump_cmd(path: str | None, level: str, explicit: str | None) -> None:
     """Bump the plugin version across every file."""
     _, repo = _load(path)
     result = bump.apply_bump(repo / "forge.yaml", level=level, explicit=explicit)
-    click.echo(f"{result.old} → {result.new}")
+    click.echo(f"{result.old} -> {result.new}")
     for f in result.files_changed:
         click.echo(f"  {f}")
 
@@ -133,25 +137,29 @@ def bump_cmd(path: str | None, level: str, explicit: str | None) -> None:
 def audit_cmd() -> None:
     """Cross-provider inventory of installed plugins."""
     r = audit.run()
-    click.echo(json.dumps(
-        {
-            "installed": [
-                {
-                    "provider": p.provider.value,
-                    "name": p.name,
-                    "version": p.version,
-                    "path": str(p.path),
-                    "is_link": p.is_link,
-                    "mcp_registered": p.mcp_registered,
-                    "hooks_registered": p.hooks_registered,
-                }
-                for p in r.installed
-            ],
-            "orphans": [str(o) for o in r.orphans],
-            "missing_across": {n: sorted(p.value for p in v) for n, v in r.missing_across.items()},
-        },
-        indent=2,
-    ))
+    click.echo(
+        json.dumps(
+            {
+                "installed": [
+                    {
+                        "provider": p.provider.value,
+                        "name": p.name,
+                        "version": p.version,
+                        "path": str(p.path),
+                        "is_link": p.is_link,
+                        "mcp_registered": p.mcp_registered,
+                        "hooks_registered": p.hooks_registered,
+                    }
+                    for p in r.installed
+                ],
+                "orphans": [str(o) for o in r.orphans],
+                "missing_across": {
+                    n: sorted(p.value for p in v) for n, v in r.missing_across.items()
+                },
+            },
+            indent=2,
+        )
+    )
 
 
 @cli.command("install-git-hooks")

@@ -8,21 +8,21 @@ manifests. All other subsystems (install, sync, bump, release) operate on
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class Provider(str, Enum):
+class Provider(StrEnum):
     CLAUDE = "claude"
     CODEX = "codex"
     KIMI = "kimi"
 
 
-class SurfaceKind(str, Enum):
+class SurfaceKind(StrEnum):
     SKILL = "skill"
     COMMAND = "command"
     AGENT = "agent"
@@ -97,7 +97,7 @@ class InstallTargets(_Base):
     kimi: str | None = None
 
     def for_provider(self, provider: Provider) -> str | None:
-        return getattr(self, provider.value)
+        return cast(str | None, getattr(self, provider.value))
 
 
 class Marketplace(_Base):
@@ -118,7 +118,7 @@ class ProviderExtras(_Base):
     kimi: dict[str, Any] = Field(default_factory=dict)
 
     def for_provider(self, provider: Provider) -> dict[str, Any]:
-        return getattr(self, provider.value)
+        return cast(dict[str, Any], getattr(self, provider.value))
 
 
 class Options(_Base):
@@ -153,19 +153,20 @@ class ForgeSpec(_Base):
 
     @model_validator(mode="after")
     def _cross_check(self) -> ForgeSpec:
-        declared = set(self.providers)
-        for surface_list, kind in [
+        declared: set[Provider] = set(self.providers)
+        surface_groups: list[tuple[list[Any], str]] = [
             (self.surfaces.skills, "skill"),
             (self.surfaces.commands, "command"),
             (self.surfaces.agents, "agent"),
             (self.surfaces.hooks, "hook"),
             (self.surfaces.mcp, "mcp"),
-        ]:
+        ]
+        for surface_list, kind in surface_groups:
             for surface in surface_list:
                 sub = getattr(surface, "providers", None)
                 if sub is None:
                     continue
-                unknown = set(sub) - declared
+                unknown: set[Provider] = set(sub) - declared
                 if unknown:
                     raise ValueError(
                         f"{kind} surface targets undeclared providers: "

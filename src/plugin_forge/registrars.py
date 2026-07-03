@@ -7,7 +7,7 @@ and Julius's live environment on 2026-07-03:
 
 Claude Code
     Documented install path is a marketplace. Forge maintains a "forge-local"
-    marketplace file (`marketplace.json` per official schema at
+    marketplace file (`.claude-plugin/marketplace.json` per official schema at
     https://code.claude.com/docs/en/plugin-marketplaces) that lists every
     forge-managed plugin with a `source` pointing at the source repo. Forge
     does not touch `installed_plugins.json` (internal cache). Actual install
@@ -41,16 +41,16 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     import tomllib  # 3.11+
 except ImportError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[import-not-found]
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+
 import tomli_w
 
 from plugin_forge.spec import ForgeSpec, Provider
-
 
 DEFAULT_MARKETPLACE = "forge-local"
 
@@ -72,7 +72,9 @@ class Registrar(ABC):
     def registry_path(self) -> Path: ...
 
     @abstractmethod
-    def register(self, spec: ForgeSpec, install_dir: Path) -> RegistrarReport: ...
+    def register(
+        self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None
+    ) -> RegistrarReport: ...
 
     @abstractmethod
     def unregister(self, name: str) -> bool: ...
@@ -91,24 +93,47 @@ class ClaudeRegistrar(Registrar):
 
     @property
     def registry_path(self) -> Path:
-        return Path.home() / ".claude" / "plugins" / "installed_plugins.json"
+        return (
+            Path.home()
+            / ".plugin-forge"
+            / "marketplaces"
+            / "claude"
+            / DEFAULT_MARKETPLACE
+            / ".claude-plugin"
+            / "marketplace.json"
+        )
 
-    def register(self, spec: ForgeSpec, install_dir: Path) -> RegistrarReport:
+    def register(
+        self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None
+    ) -> RegistrarReport:
         registry = self.registry_path
         registry.parent.mkdir(parents=True, exist_ok=True)
-        data = _load_json(registry) or {"version": 2, "plugins": {}}
-        plugins = data.setdefault("plugins", {})
-        key = f"{spec.name}@{DEFAULT_MARKETPLACE}"
-        entry = {
-            "scope": "user",
-            "installPath": str(install_dir),
-            "version": spec.version,
-            "installedAt": _iso_now(),
-            "lastUpdated": _iso_now(),
+        data = _load_json(registry) or {
+            "name": DEFAULT_MARKETPLACE,
+            "owner": {"name": "0langa"},
+            "plugins": [],
         }
-        already = key in plugins
+        data["name"] = DEFAULT_MARKETPLACE
+        data.setdefault("owner", {"name": "0langa"})
+        plugins = data.setdefault("plugins", [])
+        if not isinstance(plugins, list):
+            plugins = []
+            data["plugins"] = plugins
+        entry: dict[str, Any] = {
+            "name": spec.name,
+            "source": str(source_dir or install_dir),
+            "description": spec.description or spec.name,
+            "version": spec.version,
+        }
+        author = spec.metadata.get("author") if isinstance(spec.metadata, dict) else None
+        if author:
+            entry["author"] = {"name": str(author)}
+        already = any(isinstance(p, dict) and p.get("name") == spec.name for p in plugins)
         backup = self._backup(registry)
-        plugins[key] = [entry]
+        plugins[:] = [
+            p for p in plugins if not (isinstance(p, dict) and p.get("name") == spec.name)
+        ]
+        plugins.append(entry)
         registry.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         return RegistrarReport(
             provider=self.provider,
@@ -124,14 +149,13 @@ class ClaudeRegistrar(Registrar):
             return False
         data = _load_json(registry) or {}
         plugins = data.get("plugins")
-        if not isinstance(plugins, dict):
+        if not isinstance(plugins, list):
             return False
-        keys_to_delete = [k for k in plugins if k.split("@", 1)[0] == name]
-        if not keys_to_delete:
+        keep = [p for p in plugins if not (isinstance(p, dict) and p.get("name") == name)]
+        if len(keep) == len(plugins):
             return False
         self._backup(registry)
-        for k in keys_to_delete:
-            plugins.pop(k, None)
+        data["plugins"] = keep
         registry.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         return True
 
@@ -143,7 +167,9 @@ class CodexRegistrar(Registrar):
     def registry_path(self) -> Path:
         return Path.home() / ".codex" / "config.toml"
 
-    def register(self, spec: ForgeSpec, install_dir: Path) -> RegistrarReport:
+    def register(
+        self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None
+    ) -> RegistrarReport:
         registry = self.registry_path
         registry.parent.mkdir(parents=True, exist_ok=True)
         data = _load_toml(registry)
@@ -198,7 +224,9 @@ class KimiRegistrar(Registrar):
     def registry_path(self) -> Path:
         return Path.home() / ".kimi-code" / "plugins" / "installed.json"
 
-    def register(self, spec: ForgeSpec, install_dir: Path) -> RegistrarReport:
+    def register(
+        self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None
+    ) -> RegistrarReport:
         registry = self.registry_path
         registry.parent.mkdir(parents=True, exist_ok=True)
         data = _load_json(registry) or {"version": 1, "plugins": []}
@@ -211,7 +239,7 @@ class KimiRegistrar(Registrar):
             "enabled": True,
             "installedAt": _iso_now(),
             "updatedAt": _iso_now(),
-            "originalSource": str(install_dir),
+            "originalSource": str(source_dir or install_dir),
         }
         already = any(isinstance(p, dict) and p.get("id") == spec.name for p in plugins)
         backup = self._backup(registry)
@@ -264,7 +292,8 @@ def _load_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return cast(dict[str, Any], data)
     except Exception:
         return None
 
