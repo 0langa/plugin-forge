@@ -219,7 +219,7 @@ forge audit
 
 ```bash
 git clone https://github.com/0langa/plugin-forge C:/Users/Julius/source/repos/0langa-plugin-forge
-cd 0langas-plugin-forge
+cd plugin-forge
 uv venv
 uv pip install -e ".[dev]"
 python scripts/install.py --mode link --provider all

@@ -8,9 +8,9 @@
   "created_by": "claude-code",
   "current_provider": "claude-code",
   "target_provider": "claude-code",
-  "cwd": "C:\\Users\\Julius\\source\\repos\\0langas-plugin-forge",
+  "cwd": "C:\\Users\\Julius\\source\\repos\\plugin-forge",
   "repo": {
-    "path": "C:\\Users\\Julius\\source\\repos\\0langas-plugin-forge",
+    "path": "C:\\Users\\Julius\\source\\repos\\plugin-forge",
     "remote": "https://github.com/0langa/plugin-forge",
     "branch": "main",
     "last_pushed_commit": "0e7aed7",
@@ -118,7 +118,7 @@
     "coverage_pct": 72,
     "last_ran": "2026-07-03T21:29Z",
     "how_to_run": [
-      "cd C:\\Users\\Julius\\source\\repos\\0langas-plugin-forge",
+      "cd C:\\Users\\Julius\\source\\repos\\plugin-forge",
       ".\\.venv\\Scripts\\python.exe -m pytest",
       ".\\.venv\\Scripts\\python.exe -m pytest --cov=plugin_forge --cov-report=term"
     ]

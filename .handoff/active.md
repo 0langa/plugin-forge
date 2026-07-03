@@ -2,7 +2,7 @@
 
 **Status:** in_progress · **From:** claude-code · **To:** any (successor picks up in ~2h when Julius's Claude usage refreshes)
 
-Repo: `C:\Users\Julius\source\repos\0langas-plugin-forge` → [github.com/0langa/plugin-forge](https://github.com/0langa/plugin-forge) (private, main @ `0e7aed7`), working tree clean.
+Repo: `C:\Users\Julius\source\repos\plugin-forge` → [github.com/0langa/plugin-forge](https://github.com/0langa/plugin-forge) (private, main @ `0e7aed7`), working tree clean.
 
 ## What is plugin-forge
 
@@ -57,7 +57,7 @@ He said "keep pushing until fully done or my usage runs out." Usage is running o
 ## How to verify state before touching anything
 
 ```
-cd C:\Users\Julius\source\repos\0langas-plugin-forge
+cd C:\Users\Julius\source\repos\plugin-forge
 .\.venv\Scripts\python.exe -m pytest
 ```
 
@@ -95,7 +95,7 @@ Expected: 84 passed. If fewer, something drifted between commits.
 ## Successor start command
 
 ```
-cd C:\Users\Julius\source\repos\0langas-plugin-forge
+cd C:\Users\Julius\source\repos\plugin-forge
 git status                 # should be clean, on main @ 0e7aed7 or later
 cat .handoff/active.md     # this file
 .\.venv\Scripts\python.exe -m pytest  # 84 expected
