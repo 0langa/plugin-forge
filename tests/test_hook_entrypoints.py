@@ -131,3 +131,12 @@ def test_post_tool_use_recompiles_on_manifest_edit(
     assert "recompiled" in buf.getvalue()
     restored = json.loads(kimi_path.read_text())
     assert restored["version"] == sample_spec.version
+
+
+def test_codex_hooks_are_cross_platform() -> None:
+    hooks = json.loads((Path(__file__).resolve().parents[1] / "hooks" / "codex-hooks.json").read_text())
+    for groups in hooks["hooks"].values():
+        for group in groups:
+            for hook in group["hooks"]:
+                assert "uv run --project \"$root\" python" in hook["command"], hook
+                assert "uv run --project $root python" in hook["commandWindows"], hook
