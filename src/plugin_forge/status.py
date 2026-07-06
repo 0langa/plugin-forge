@@ -103,11 +103,12 @@ def _find_repo_root(cwd: Path) -> Path | None:
     cwd = cwd.resolve()
     for candidate in [cwd, *cwd.parents]:
         if (
-            (candidate / ".git").exists()
-            or (candidate / "forge.yaml").exists()
+            (candidate / "forge.yaml").exists()
             or _has_provider_manifest(candidate)
         ):
             return candidate
+    if (cwd / ".git").exists():
+        return cwd
     return None
 
 

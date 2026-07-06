@@ -77,14 +77,26 @@ def _interface(spec: ForgeSpec) -> dict[str, Any]:
     if "terms_of_service_url" in meta:
         iface["termsOfServiceURL"] = meta["terms_of_service_url"]
     if "default_prompt" in meta:
-        iface["defaultPrompt"] = meta["default_prompt"]
+        iface["defaultPrompt"] = _default_prompt(meta["default_prompt"])
     if "brand_color" in meta:
         iface["brandColor"] = meta["brand_color"]
+    if "composer_icon" in meta:
+        iface["composerIcon"] = meta["composer_icon"]
+    if "logo" in meta:
+        iface["logo"] = meta["logo"]
+    if "screenshots" in meta:
+        iface["screenshots"] = meta["screenshots"]
     return iface
 
 
 def _title(name: str) -> str:
     return " ".join(part.capitalize() for part in name.replace("_", "-").split("-"))
+
+
+def _default_prompt(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    return [str(value)]
 
 
 def write_codex(spec: ForgeSpec, out_root: Path) -> Path:

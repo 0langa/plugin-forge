@@ -22,11 +22,26 @@ def test_codex_includes_interface(sample_spec: ForgeSpec) -> None:
     assert out["mcpServers"] == "./.codex-mcp.json"
 
 
+def test_codex_interface_supports_visuals_and_prompt_list(sample_spec: ForgeSpec) -> None:
+    sample_spec.metadata["interface"] = {
+        "default_prompt": "Use Demo.",
+        "composer_icon": "./assets/icon.png",
+        "logo": "./assets/logo.png",
+        "screenshots": ["./assets/screenshot-1.png"],
+    }
+    out = render_for_provider(sample_spec, Provider.CODEX)
+    assert out["interface"]["defaultPrompt"] == ["Use Demo."]
+    assert out["interface"]["composerIcon"] == "./assets/icon.png"
+    assert out["interface"]["logo"] == "./assets/logo.png"
+    assert out["interface"]["screenshots"] == ["./assets/screenshot-1.png"]
+
+
 def test_kimi_inlines_mcp(sample_spec: ForgeSpec) -> None:
     out = render_for_provider(sample_spec, Provider.KIMI)
     assert isinstance(out["mcpServers"], dict)
     assert "demo" in out["mcpServers"]
     assert out["mcpServers"]["demo"]["command"] == "uv"
+    assert out["mcpServers"]["demo"]["args"][:3] == ["run", "--with-editable", "."]
 
 
 def test_render_all_writes_files(sample_spec: ForgeSpec, tmp_path: Path) -> None:

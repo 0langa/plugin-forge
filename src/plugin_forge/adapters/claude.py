@@ -1,7 +1,7 @@
 """Claude Code plugin manifest.
 
 Layout:
-    .claude-plugin/plugin.json    (thin — points at ./skills, ./commands, ./.mcp.json, ./hooks/hooks.json)
+    .claude-plugin/plugin.json    (thin — points at ./skills, ./commands, ./.mcp.json)
     .mcp.json                     (mcpServers block, sibling of .claude-plugin)
     hooks/hooks.json              (hook wiring, sibling of .claude-plugin)
 
@@ -40,8 +40,6 @@ def render_claude(spec: ForgeSpec) -> dict[str, Any]:
         payload["agents"] = "./agents"
     if active.mcp:
         payload["mcpServers"] = "./.mcp.json"
-    if active.hooks:
-        payload["hooks"] = "./hooks/hooks.json"
     payload.update(spec.provider_extras.for_provider(Provider.CLAUDE))
     return payload
 

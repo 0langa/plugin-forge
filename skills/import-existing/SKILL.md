@@ -125,8 +125,10 @@ before allowing Forge to own live manifests.
 When the plugin is risky, render to a scratch directory first:
 
 ```powershell
-forge import-repo --write
-forge compile --out <scratch>
+forge import --path <repo> --write
+Copy-Item <repo> <scratch> -Recurse
+forge compile --path <scratch>
+forge sync --path <scratch>
 ```
 
 Compare scratch output against current manifests. Preserve fields that matter.

@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/scripts/run_codex_hook.py\" session_start",
-            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'scripts/run_codex_hook.py') session_start"
+            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/session_start.py\"",
+            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src/plugin_forge/hooks/session_start.py')"
           }
         ]
       }
@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/scripts/run_codex_hook.py\" post_tool_use",
-            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'scripts/run_codex_hook.py') post_tool_use"
+            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/post_tool_use.py\"",
+            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src/plugin_forge/hooks/post_tool_use.py')"
           }
         ]
       }
@@ -27,8 +27,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/scripts/run_codex_hook.py\" user_prompt_submit",
-            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'scripts/run_codex_hook.py') user_prompt_submit"
+            "command": "root=\"${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/user_prompt_submit.py\"",
+            "commandWindows": "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src/plugin_forge/hooks/user_prompt_submit.py')"
           }
         ]
       }

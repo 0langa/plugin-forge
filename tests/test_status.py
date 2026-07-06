@@ -26,6 +26,17 @@ def test_probe_reports_non_plugin_repo(tmp_path: Path) -> None:
     assert st.banner() == ""
 
 
+def test_probe_does_not_climb_to_unrelated_parent_git_root(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    st = status.probe(empty)
+
+    assert st.is_plugin_repo is False
+    assert st.repo == empty.resolve()
+
+
 def test_probe_reports_plugin_with_drift(sample_spec: ForgeSpec, tmp_path: Path) -> None:
     sample_spec.dump(tmp_path / "forge.yaml")
     st = status.probe(tmp_path)

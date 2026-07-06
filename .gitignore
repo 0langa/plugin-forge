@@ -21,3 +21,7 @@ Thumbs.db
 .idea/
 *.log
 .forge_state/
+
+.recall/
+.codex_memory/
+.handoff/

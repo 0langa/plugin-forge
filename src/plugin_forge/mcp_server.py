@@ -14,7 +14,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from plugin_forge import audit, bump, importer, installer, status, sync
+from plugin_forge import audit, bump, importer, initializer, installer, status, sync
 from plugin_forge.adapters import render_all
 from plugin_forge.installer import Mode
 from plugin_forge.spec import ForgeSpec, Provider
@@ -32,6 +32,33 @@ def _load(path: str | None) -> tuple[ForgeSpec, Path]:
     if not forge_yaml.exists():
         raise FileNotFoundError(f"no forge.yaml at {forge_yaml}")
     return ForgeSpec.load(forge_yaml), repo
+
+
+@mcp.tool()
+def init_project(
+    path: str | None = None,
+    name: str | None = None,
+    providers: str = "all",
+    description: str | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    """Create forge.yaml and standard plugin source directories."""
+    repo = _cwd(path)
+    plugin_name = name or repo.name
+    provider_list = initializer.parse_providers(providers)
+    result = initializer.create(
+        repo,
+        plugin_name,
+        provider_list,
+        description=description,
+        force=force,
+    )
+    return {
+        "repo": str(result.repo),
+        "forge_yaml": str(result.forge_yaml),
+        "created_dirs": [str(path) for path in result.created_dirs],
+        "spec": result.spec.model_dump(mode="json", exclude_none=True),
+    }
 
 
 @mcp.tool()

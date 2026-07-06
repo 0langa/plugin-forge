@@ -37,6 +37,7 @@ Manually keeping this coherent = repeated 5-file hand-edits, silent drift, broke
 
 | Tool | Purpose |
 | --- | --- |
+| `forge.init_project` | Bootstrap a new plugin repo with `forge.yaml` and standard source dirs |
 | `forge.status` | Compact plugin-repo report: surfaces, install state, drift, marketplace sync, git |
 | `forge.compile` | Regenerate every provider manifest from `forge.yaml` |
 | `forge.import_repo` | Retrofit an existing plugin repo into a `forge.yaml` (best-effort sniff) |
@@ -155,12 +156,12 @@ provider_extras:
 Emitted files after `forge compile`:
 
 ```
-.claude-plugin/plugin.json    # thin, points at ./skills, ./commands, ./.mcp.json, ./hooks/hooks.json
+.claude-plugin/plugin.json    # thin, points at ./skills, ./commands, ./.mcp.json
 .codex-plugin/plugin.json     # rich, includes interface block, same references
 kimi.plugin.json              # inline mcpServers + inline hooks + sessionStart block
 .mcp.json                     # Claude MCP file
 .codex-mcp.json               # Codex MCP file, unless options.shared_mcp_file is true
-hooks/hooks.json              # hook wiring for Claude
+hooks/hooks.json              # default hook wiring for Claude
 hooks/codex-hooks.json        # hook wiring for Codex
 ```
 
@@ -174,10 +175,11 @@ Emitted hook commands use the official runtime root variables: `CLAUDE_PLUGIN_RO
 
 ```bash
 mkdir my-plugin && cd my-plugin
-# Write your source: hooks/, skills/, mcp/, commands/, etc.
-# Write forge.yaml (see example above)
-
+forge init --name my-plugin --providers all
+# Add your source: hooks/, skills/, mcp/, commands/, etc.
+# Edit forge.yaml for real surfaces and metadata
 forge compile        # emit all provider manifests
+forge sync           # verify emitted manifests match forge.yaml
 forge install        # link into ~/.claude, ~/.codex, ~/.kimi-code
 ```
 
@@ -188,6 +190,7 @@ cd path/to/existing-plugin
 forge import         # sniff manifests → write forge.yaml
 forge install-git-hooks   # add pre-commit + pre-push guards
 forge sync           # verify parity
+forge install        # link into provider plugin directories when ready
 ```
 
 ### Cut a release
@@ -237,7 +240,7 @@ Forge owns plugin-level operations: manifests, installs, MCP wiring, hooks, vers
 
 Alpha. See [CHANGELOG.md](CHANGELOG.md).
 
-- 84 unit + integration tests passing
+- 94 unit + integration tests passing
 - Round-trip verified against real `usage-pulse` plugin
 - Live install verification: pending on your machine
 

@@ -34,6 +34,8 @@
       "command": "uv",
       "args": [
         "run",
+        "--with-editable",
+        ".",
         "python",
         "-m",
         "plugin_forge.mcp_server"

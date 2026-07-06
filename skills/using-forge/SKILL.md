@@ -37,6 +37,7 @@ provider manifests exist, use the `import-existing` skill instead.
 Use Forge MCP tools before hand-editing generated provider files.
 
 ```text
+Bootstrap new plugin repo      -> forge.init_project
 Question about repo state       -> forge.status
 Regenerate provider manifests   -> forge.compile
 Check or fix manifest drift      -> forge.sync_check(fix=true)
@@ -59,7 +60,7 @@ After changing `forge.yaml`, run:
 
 ```powershell
 forge compile
-forge sync-check
+forge sync
 ```
 
 After changing hook, skill, command, MCP, or manifest logic, run the repo's
@@ -84,7 +85,7 @@ Forge status: <plugin> v<version>, providers: Claude/Codex/Kimi, drift: none, in
 For repair work:
 
 ```text
-Fixed provider drift in <files>. Verified with forge sync-check and pytest.
+Fixed provider drift in <files>. Verified with forge sync and pytest.
 ```
 
 For blocked work:
@@ -154,24 +155,27 @@ For provider file changes:
 
 ```powershell
 forge compile
-forge sync-check
+forge sync
 pytest
 ```
 
 For hook changes:
 
 ```powershell
-forge hook-test --event SessionStart
-forge hook-test --event PostToolUse
+forge compile
+forge sync
+pytest
 ```
 
 For MCP changes:
 
 ```powershell
-forge mcp-dev
+forge compile
+forge sync
 ```
 
-Run the printed MCP command once before reporting success.
+When using MCP tools directly, `forge.hook_test` and `forge.mcp_dev` provide
+focused hook and MCP smoke checks.
 
 ## Troubleshooting
 

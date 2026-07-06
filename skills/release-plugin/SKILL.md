@@ -128,7 +128,7 @@ Action: run PluginEval, improve skills if needed, verify score, then run release
 
 | Surface changed | Required check |
 | --- | --- |
-| `forge.yaml` | compile and sync-check |
+| `forge.yaml` | compile and sync |
 | Skill docs | PluginEval quick or standard |
 | Hook code | synthetic hook test |
 | MCP server | direct MCP server startup |

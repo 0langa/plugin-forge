@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 
-from plugin_forge import audit, bump, git_hooks, importer, installer, sync
+from plugin_forge import audit, bump, git_hooks, importer, initializer, installer, sync
 from plugin_forge.adapters import render_all
 from plugin_forge.installer import Mode
 from plugin_forge.spec import ForgeSpec, Provider
@@ -33,6 +33,36 @@ def cli() -> None:
     """plugin-forge — multi-provider plugin lifecycle."""
 
 
+@cli.command("init")
+@click.option("--path", default=None, help="Plugin repo path (defaults to cwd).")
+@click.option("--name", required=True, help="Stable plugin id, usually kebab-case.")
+@click.option("--providers", default="all", help="Comma list: all, claude,codex,kimi.")
+@click.option("--description", default=None, help="Short plugin description.")
+@click.option("--force", is_flag=True, default=False, help="Overwrite existing forge.yaml.")
+def init_cmd(
+    path: str | None, name: str, providers: str, description: str | None, force: bool
+) -> None:
+    """Create forge.yaml and standard plugin source directories."""
+    repo = Path(path).resolve() if path else Path.cwd().resolve()
+    try:
+        provider_list = initializer.parse_providers(providers)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    try:
+        result = initializer.create(
+            repo,
+            name,
+            provider_list,
+            description=description,
+            force=force,
+        )
+    except FileExistsError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"wrote {result.forge_yaml}")
+    for directory in result.created_dirs:
+        click.echo(f"dir {directory}")
+
+
 @cli.command()
 @click.option("--path", default=None, help="Plugin repo path (defaults to cwd).")
 def status(path: str | None) -> None:
@@ -46,7 +76,7 @@ def status(path: str | None) -> None:
 @cli.command()
 @click.option("--path", default=None)
 def compile(path: str | None) -> None:
-    """Regenerate provider manifests from forge.yaml."""
+    """Regenerate provider manifests from forge.yaml before sync/install."""
     spec, repo = _load(path)
     written = render_all(spec, repo)
     for prov, p in written.items():
@@ -97,7 +127,7 @@ def import_(path: str | None, write: bool) -> None:
 @click.option("--mode", default="link", type=click.Choice(["link", "copy"]))
 @click.option("--dry-run", is_flag=True, default=False)
 def install(path: str | None, provider: str, mode: str, dry_run: bool) -> None:
-    """Install this plugin into provider directories."""
+    """Install compiled provider manifests; run compile and sync first."""
     spec, repo = _load(path)
     providers = list(spec.providers) if provider == "all" else [Provider(provider)]
     for prov in providers:

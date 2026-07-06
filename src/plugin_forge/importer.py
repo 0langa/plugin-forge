@@ -427,6 +427,7 @@ def _snakeify_interface(iface: dict[str, Any]) -> dict[str, Any]:
         "termsOfServiceURL": "terms_of_service_url",
         "defaultPrompt": "default_prompt",
         "brandColor": "brand_color",
+        "composerIcon": "composer_icon",
     }
     return {key_map.get(k, k): v for k, v in iface.items()}
 

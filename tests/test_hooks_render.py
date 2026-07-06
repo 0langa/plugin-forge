@@ -64,7 +64,7 @@ def test_claude_hooks_sidecar(tmp_path: Path) -> None:
     spec = _spec_with_hooks()
     render_all(spec, tmp_path)
     plugin = json.loads((tmp_path / ".claude-plugin" / "plugin.json").read_text())
-    assert plugin["hooks"] == "./hooks/hooks.json"
+    assert "hooks" not in plugin
     sidecar = json.loads((tmp_path / "hooks" / "hooks.json").read_text())
     assert set(sidecar["hooks"]) == {"SessionStart", "PreToolUse", "Stop"}
     assert "CLAUDE_PLUGIN_ROOT" in sidecar["hooks"]["SessionStart"][0]["hooks"][0]["command"]
@@ -77,9 +77,12 @@ def test_codex_hooks_sidecar_is_provider_specific(tmp_path: Path) -> None:
     render_all(spec, tmp_path)
     plugin = json.loads((tmp_path / ".codex-plugin" / "plugin.json").read_text())
     assert plugin["hooks"] == "./hooks/codex-hooks.json"
-    sidecar_text = (tmp_path / "hooks" / "codex-hooks.json").read_text()
-    assert "PLUGIN_ROOT" in sidecar_text
-    assert "CODEX_PLUGIN_ROOT" not in sidecar_text
+    sidecar = json.loads((tmp_path / "hooks" / "codex-hooks.json").read_text())
+    hook = sidecar["hooks"]["SessionStart"][0]["hooks"][0]
+    assert "PLUGIN_ROOT" in hook["command"]
+    assert 'uv run --project "$root" python' in hook["command"]
+    assert "uv run --project $root python" in hook["commandWindows"]
+    assert "CODEX_PLUGIN_ROOT" not in json.dumps(sidecar)
     assert "CLAUDE_PLUGIN_ROOT" in (tmp_path / "hooks" / "hooks.json").read_text()
 
 

@@ -41,7 +41,7 @@ def render_mcp_entry(m: McpSurface) -> dict[str, Any]:
         module = m.package.removeprefix("module:")
         entry = {
             "command": "uv",
-            "args": ["run", "python", "-m", module, *m.args],
+            "args": ["run", "--with-editable", ".", "python", "-m", module, *m.args],
             "cwd": "./",
         }
     elif m.package.startswith("node:"):
@@ -85,6 +85,22 @@ def render_hook_command(script: str, provider: Provider) -> str:
     )
 
 
+def render_codex_hook_commands(script: str) -> dict[str, str]:
+    script_norm = script.replace("\\", "/")
+    return {
+        "command": (
+            'root="${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"; '
+            f'uv run --project "$root" python "$root/{script_norm}"'
+        ),
+        "commandWindows": (
+            "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } "
+            "elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } "
+            "else { (Get-Location).Path }; "
+            f"uv run --project $root python (Join-Path $root '{script_norm}')"
+        ),
+    }
+
+
 def render_hook_entries(spec: ForgeSpec, provider: Provider) -> list[dict[str, Any]]:
     """Render every hook active on `provider` into the standard entry shape:
 
@@ -96,6 +112,8 @@ def render_hook_entries(spec: ForgeSpec, provider: Provider) -> list[dict[str, A
         entry: dict[str, Any] = {"event": h.event}
         if h.command:
             entry["command"] = h.command
+        elif provider is Provider.CODEX:
+            entry.update(render_codex_hook_commands(h.script or ""))
         else:
             entry["command"] = render_hook_command(h.script or "", provider)
         if h.matcher:
@@ -119,6 +137,8 @@ def render_hooks_config(spec: ForgeSpec, provider: Provider) -> dict[str, Any]:
             "type": "command",
             "command": entry["command"],
         }
+        if "commandWindows" in entry:
+            command_hook["commandWindows"] = entry["commandWindows"]
         if "timeout" in entry:
             command_hook["timeout"] = entry["timeout"]
         matcher_entry: dict[str, Any] = {"hooks": [command_hook]}

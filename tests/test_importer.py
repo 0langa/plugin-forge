@@ -21,3 +21,34 @@ def test_import_roundtrip_from_rendered(sample_spec: ForgeSpec, tmp_path: Path) 
     )
     assert reimported.surfaces.skills
     assert any(m.name == "demo" for m in reimported.surfaces.mcp)
+
+
+def test_importer_preserves_codex_visual_interface_fields(tmp_path: Path) -> None:
+    plugin_dir = tmp_path / ".codex-plugin"
+    plugin_dir.mkdir()
+    (plugin_dir / "plugin.json").write_text(
+        """
+{
+  "name": "visual-demo",
+  "version": "0.1.0",
+  "description": "visual plugin",
+  "interface": {
+    "displayName": "Visual Demo",
+    "defaultPrompt": ["Audit visuals."],
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "screenshots": ["./assets/screenshot-1.png"]
+  }
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    spec = importer.sniff(tmp_path)
+
+    interface = spec.metadata["interface"]
+    assert interface["display_name"] == "Visual Demo"
+    assert interface["default_prompt"] == ["Audit visuals."]
+    assert interface["composer_icon"] == "./assets/icon.png"
+    assert interface["logo"] == "./assets/logo.png"
+    assert interface["screenshots"] == ["./assets/screenshot-1.png"]
