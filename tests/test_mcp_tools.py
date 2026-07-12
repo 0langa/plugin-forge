@@ -26,6 +26,23 @@ def test_status_tool_reports_plugin_repo(
     assert result["name"] == sample_spec.name
 
 
+def test_status_tool_skips_git_by_default(
+    sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sample_spec.dump(tmp_path / "forge.yaml")
+    render_all(sample_spec, tmp_path)
+
+    def fail_if_called(_repo: Path) -> tuple[str | None, bool]:
+        raise AssertionError("hosted MCP status must not spawn Git by default")
+
+    monkeypatch.setattr(mcp_server.status, "_git_state", fail_if_called)
+    result = mcp_server.status_tool(path=str(tmp_path))
+
+    assert result["git_branch"] is None
+    assert result["git_dirty"] is False
+    assert "git state omitted" in result["notes"]
+
+
 def test_compile_tool_writes_manifests(sample_spec: ForgeSpec, tmp_path: Path) -> None:
     sample_spec.dump(tmp_path / "forge.yaml")
     result = mcp_server.compile(path=str(tmp_path))

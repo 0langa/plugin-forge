@@ -65,39 +65,60 @@ def write_json(path: Path, payload: dict[str, Any]) -> Path:
     return path
 
 
-def render_hook_command(script: str, provider: Provider) -> str:
+def _render_args(args: list[str]) -> str:
+    return "" if not args else " " + " ".join(json.dumps(arg) for arg in args)
+
+
+def render_hook_command(
+    script: str, provider: Provider, args: list[str] | None = None
+) -> str:
     """Render a script-path hook into the inline shell command shape hosts expect.
 
-    Uses `py -3` on Windows-friendly path; each provider passes a plugin-root
-    env var that lets the hook resolve its own source at runtime.
+    Claude receives a portable shell command. Kimi keeps its inline Python
+    launcher because its manifest has no separate Windows-command field.
     """
+    script_norm = script.replace("\\", "/")
+    hook_args = list(args or [])
+    if provider is Provider.CLAUDE:
+        return (
+            'root="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}"; '
+            f'uv run --project "$root" python "$root/{script_norm}"'
+            f"{_render_args(hook_args)}"
+        )
     root_expr = {
-        Provider.CLAUDE: "os.environ.get('CLAUDE_PLUGIN_ROOT') or os.environ.get('PLUGIN_ROOT')",
-        Provider.CODEX: "os.environ.get('PLUGIN_ROOT') or os.environ.get('CLAUDE_PLUGIN_ROOT')",
         Provider.KIMI: "os.environ.get('KIMI_PLUGIN_ROOT')",
     }[provider]
-    script_norm = script.replace("\\", "/")
+    argv = ["plugin-hook", *hook_args]
     return (
         "py -3 -c \"import os,runpy,sys; "
         f"root={root_expr} or os.getcwd(); "
+        f"sys.argv={argv!r}; "
         "sys.path.insert(0, os.path.join(root,'src')); "
         f"runpy.run_path(os.path.join(root, {script_norm!r}), run_name='__main__')\""
     )
 
 
-def render_codex_hook_commands(script: str) -> dict[str, str]:
+def render_hook_command_windows(script: str, provider: Provider, args: list[str]) -> str:
+    script_norm = script.replace("/", "\\")
+    primary = "CLAUDE_PLUGIN_ROOT" if provider is Provider.CLAUDE else "PLUGIN_ROOT"
+    secondary = "PLUGIN_ROOT" if provider is Provider.CLAUDE else "CLAUDE_PLUGIN_ROOT"
+    return (
+        f"$root = if ($env:{primary}) {{ $env:{primary} }} "
+        f"elseif ($env:{secondary}) {{ $env:{secondary} }} "
+        "else { (Get-Location).Path }; "
+        f"uv run --project $root python (Join-Path $root '{script_norm}')"
+        f"{_render_args(args)}"
+    )
+
+
+def render_codex_hook_commands(script: str, args: list[str]) -> dict[str, str]:
     script_norm = script.replace("\\", "/")
     return {
         "command": (
             'root="${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"; '
-            f'uv run --project "$root" python "$root/{script_norm}"'
+            f'uv run --project "$root" python "$root/{script_norm}"{_render_args(args)}'
         ),
-        "commandWindows": (
-            "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } "
-            "elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } "
-            "else { (Get-Location).Path }; "
-            f"uv run --project $root python (Join-Path $root '{script_norm}')"
-        ),
+        "commandWindows": render_hook_command_windows(script, Provider.CODEX, args),
     }
 
 
@@ -109,15 +130,23 @@ def render_hook_entries(spec: ForgeSpec, provider: Provider) -> list[dict[str, A
     active = spec.surfaces_for_provider(provider).hooks
     entries: list[dict[str, Any]] = []
     for h in active:
+        hook_args = h.args.get(provider, [])
         entry: dict[str, Any] = {"event": h.event}
         if h.command:
             entry["command"] = h.command
         elif provider is Provider.CODEX:
-            entry.update(render_codex_hook_commands(h.script or ""))
+            entry.update(render_codex_hook_commands(h.script or "", hook_args))
         else:
-            entry["command"] = render_hook_command(h.script or "", provider)
-        if h.matcher:
-            entry["matcher"] = h.matcher
+            entry["command"] = render_hook_command(h.script or "", provider, hook_args)
+            if provider is Provider.CLAUDE:
+                entry["commandWindows"] = render_hook_command_windows(
+                    h.script or "", provider, hook_args
+                )
+        matcher = h.matchers.get(provider, h.matcher)
+        if matcher:
+            entry["matcher"] = matcher
+        if h.status_message and provider is not Provider.KIMI:
+            entry["statusMessage"] = h.status_message
         if h.timeout_seconds:
             entry["timeout"] = h.timeout_seconds
         entries.append(entry)
@@ -139,6 +168,8 @@ def render_hooks_config(spec: ForgeSpec, provider: Provider) -> dict[str, Any]:
         }
         if "commandWindows" in entry:
             command_hook["commandWindows"] = entry["commandWindows"]
+        if "statusMessage" in entry:
+            command_hook["statusMessage"] = entry["statusMessage"]
         if "timeout" in entry:
             command_hook["timeout"] = entry["timeout"]
         matcher_entry: dict[str, Any] = {"hooks": [command_hook]}

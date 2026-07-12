@@ -62,9 +62,12 @@ def init_project(
 
 
 @mcp.tool()
-def status_tool(path: str | None = None) -> dict[str, Any]:
-    """Return combined plugin-repo status: manifests, drift, installs, marketplace, git."""
-    return status.probe(_cwd(path)).to_dict()
+def status_tool(path: str | None = None, include_git: bool = False) -> dict[str, Any]:
+    """Return plugin-repo status.
+
+    Git state is opt-in because hosted MCP processes can block while spawning Git.
+    """
+    return status.probe(_cwd(path), include_git=include_git).to_dict()
 
 
 @mcp.tool()

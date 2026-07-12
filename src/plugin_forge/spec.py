@@ -65,6 +65,9 @@ class HookSurface(_Base):
     command: str | None = None
     providers: list[Provider] | None = None
     matcher: str | None = None
+    matchers: dict[Provider, str] = Field(default_factory=dict)
+    args: dict[Provider, list[str]] = Field(default_factory=dict)
+    status_message: str | None = None
     timeout_seconds: int | None = None
 
     @model_validator(mode="after")

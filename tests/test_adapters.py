@@ -25,12 +25,14 @@ def test_codex_includes_interface(sample_spec: ForgeSpec) -> None:
 def test_codex_interface_supports_visuals_and_prompt_list(sample_spec: ForgeSpec) -> None:
     sample_spec.metadata["interface"] = {
         "default_prompt": "Use Demo.",
+        "brand_color": "#123456",
         "composer_icon": "./assets/icon.png",
         "logo": "./assets/logo.png",
         "screenshots": ["./assets/screenshot-1.png"],
     }
     out = render_for_provider(sample_spec, Provider.CODEX)
     assert out["interface"]["defaultPrompt"] == ["Use Demo."]
+    assert out["interface"]["brandColor"] == "#123456"
     assert out["interface"]["composerIcon"] == "./assets/icon.png"
     assert out["interface"]["logo"] == "./assets/logo.png"
     assert out["interface"]["screenshots"] == ["./assets/screenshot-1.png"]

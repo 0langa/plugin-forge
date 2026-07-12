@@ -54,7 +54,7 @@ class RepoStatus:
         return " | ".join(parts)
 
 
-def probe(cwd: Path) -> RepoStatus:
+def probe(cwd: Path, *, include_git: bool = True) -> RepoStatus:
     repo = _find_repo_root(cwd)
     if repo is None:
         return RepoStatus(is_plugin_repo=False, repo=cwd, has_forge_yaml=False)
@@ -67,7 +67,10 @@ def probe(cwd: Path) -> RepoStatus:
     if not is_plugin_repo:
         return status
 
-    status.git_branch, status.git_dirty = _git_state(repo)
+    if include_git:
+        status.git_branch, status.git_dirty = _git_state(repo)
+    else:
+        status.notes.append("git state omitted")
 
     if not has_forge:
         status.notes.append("no forge.yaml - run forge.import to retrofit")
@@ -166,6 +169,8 @@ def _check_marketplace(spec: ForgeSpec, repo: Path) -> tuple[bool | None, list[s
             ok = False
             continue
         found_version = _find_plugin_version(data, spec.name)
+        if path.name == "kimi-marketplace.json" and _has_plugin_entry(data, spec.name):
+            continue
         if found_version is None:
             notes.append(f"{path.name}: plugin '{spec.name}' not registered")
             ok = False
@@ -189,3 +194,13 @@ def _find_plugin_version(root: object, name: str) -> str | None:
             if found is not None:
                 return found
     return None
+
+
+def _has_plugin_entry(root: object, name: str) -> bool:
+    if isinstance(root, dict):
+        if root.get("name") == name or root.get("id") == name:
+            return True
+        return any(_has_plugin_entry(value, name) for value in root.values())
+    if isinstance(root, list):
+        return any(_has_plugin_entry(value, name) for value in root)
+    return False

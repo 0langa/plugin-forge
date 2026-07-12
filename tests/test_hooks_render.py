@@ -29,6 +29,13 @@ def _spec_with_hooks() -> ForgeSpec:
                     event="PreToolUse",
                     script="hooks/pre_tool_use.py",
                     matcher=".*",
+                    matchers={Provider.CLAUDE: "Read|Write"},
+                    args={
+                        Provider.CLAUDE: ["PreToolUse", "--provider", "claude"],
+                        Provider.CODEX: ["PreToolUse", "--provider", "codex"],
+                        Provider.KIMI: ["PreToolUse", "--provider", "kimi"],
+                    },
+                    status_message="Hook running",
                     timeout_seconds=10,
                 ),
                 HookSurface(event="Stop", command="raw shell noop"),
@@ -68,8 +75,10 @@ def test_claude_hooks_sidecar(tmp_path: Path) -> None:
     sidecar = json.loads((tmp_path / "hooks" / "hooks.json").read_text())
     assert set(sidecar["hooks"]) == {"SessionStart", "PreToolUse", "Stop"}
     assert "CLAUDE_PLUGIN_ROOT" in sidecar["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-    assert sidecar["hooks"]["PreToolUse"][0]["matcher"] == ".*"
+    assert sidecar["hooks"]["PreToolUse"][0]["matcher"] == "Read|Write"
     assert sidecar["hooks"]["PreToolUse"][0]["hooks"][0]["timeout"] == 10
+    assert sidecar["hooks"]["PreToolUse"][0]["hooks"][0]["statusMessage"] == "Hook running"
+    assert "--provider\" \"claude" in sidecar["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
 def test_codex_hooks_sidecar_is_provider_specific(tmp_path: Path) -> None:
@@ -83,6 +92,8 @@ def test_codex_hooks_sidecar_is_provider_specific(tmp_path: Path) -> None:
     assert 'uv run --project "$root" python' in hook["command"]
     assert "uv run --project $root python" in hook["commandWindows"]
     assert "CODEX_PLUGIN_ROOT" not in json.dumps(sidecar)
+    pre_tool = sidecar["hooks"]["PreToolUse"][0]["hooks"][0]
+    assert '--provider" "codex' in pre_tool["command"]
     assert "CLAUDE_PLUGIN_ROOT" in (tmp_path / "hooks" / "hooks.json").read_text()
 
 

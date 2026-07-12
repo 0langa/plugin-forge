@@ -2,6 +2,18 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.0] - 2026-07-12
+
+- Added provider-specific hook arguments and matchers to the Forge schema.
+- Preserved hook status messages and Windows commands during provider compilation.
+- Enabled Usage Pulse manifests to round-trip without losing provider identity.
+
+## [0.1.1] - 2026-07-12
+
+- Prevent hosted MCP status calls from blocking on Git subprocesses.
+- Preserve Codex visual metadata and cross-platform hook commands during compilation.
+- Accept versionless Kimi marketplace entries during sync checks.
+
 ## [0.1.0] - 2026-07-03
 
 Initial alpha.

@@ -64,3 +64,22 @@ def test_probe_detects_provider_manifest_only(tmp_path: Path) -> None:
     assert st.is_plugin_repo is True
     assert st.has_forge_yaml is False
     assert any("import" in note.lower() for note in st.notes)
+
+
+def test_kimi_marketplace_entry_does_not_require_version(
+    sample_spec: ForgeSpec, tmp_path: Path
+) -> None:
+    marketplace = tmp_path / "kimi-marketplace.json"
+    marketplace.write_text(
+        '{"version":"2","plugins":[{"id":"demo","source":"./plugins/demo"}]}',
+        encoding="utf-8",
+    )
+    sample_spec.marketplace.kimi_manifest = str(marketplace)
+    sample_spec.marketplace.claude_manifest = None
+    sample_spec.dump(tmp_path / "forge.yaml")
+    render_all(sample_spec, tmp_path)
+
+    st = status.probe(tmp_path)
+
+    assert st.marketplace_synced is True
+    assert st.marketplace_notes == []

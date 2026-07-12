@@ -5,7 +5,6 @@ import runpy
 import sys
 from pathlib import Path
 
-
 HOOKS = {
     "session_start": "session_start.py",
     "post_tool_use": "post_tool_use.py",
