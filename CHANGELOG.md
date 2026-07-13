@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.1] - 2026-07-13
+
+- Declared bundled Claude hooks in plugin metadata.
+- Removed editable-install flags from generated MCP launch commands so cached installs remain portable.
+
 ## [0.2.0] - 2026-07-12
 
 - Added provider-specific hook arguments and matchers to the Forge schema.
