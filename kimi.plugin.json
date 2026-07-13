@@ -1,6 +1,6 @@
 {
   "name": "plugin-forge",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.",
   "author": {
     "name": "0langa"
@@ -35,6 +35,8 @@
       "command": "uv",
       "args": [
         "run",
+        "--with-editable",
+        ".",
         "python",
         "-m",
         "plugin_forge.mcp_server"

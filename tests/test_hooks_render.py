@@ -81,6 +81,13 @@ def test_claude_hooks_sidecar(tmp_path: Path) -> None:
     assert "--provider\" \"claude" in sidecar["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
+def test_repository_claude_manifest_uses_standard_hook_autodiscovery() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    plugin = json.loads((repo_root / ".claude-plugin" / "plugin.json").read_text())
+
+    assert "hooks" not in plugin
+
+
 def test_codex_hooks_sidecar_is_provider_specific(tmp_path: Path) -> None:
     spec = _spec_with_hooks()
     render_all(spec, tmp_path)

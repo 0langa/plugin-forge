@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.2] - 2026-07-13
+
+- Removed duplicate Claude hook declaration and rely on standard `hooks/hooks.json` autodiscovery.
+- Added regression coverage for committed Claude manifest shape.
+
 ## [0.2.1] - 2026-07-13
 
 - Declared bundled Claude hooks in plugin metadata.
