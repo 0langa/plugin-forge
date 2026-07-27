@@ -28,27 +28,46 @@ def base_header(spec: ForgeSpec) -> dict[str, Any]:
     return header
 
 
-def render_mcp_entry(m: McpSurface) -> dict[str, Any]:
+def mcp_root(provider: Provider) -> str:
+    """Root prefix an MCP launcher must use to locate its own plugin directory.
+
+    Claude Code spawns plugin MCP servers with the *session* working directory,
+    not the plugin directory, so relative paths resolve against the user's repo
+    and the launcher fails. `${CLAUDE_PLUGIN_ROOT}` is expanded by the host and
+    is the only portable anchor. Codex and Kimi resolve relative paths against
+    the plugin root already, so they keep `.`.
+    """
+    return "${CLAUDE_PLUGIN_ROOT}" if provider is Provider.CLAUDE else "."
+
+
+def render_mcp_entry(m: McpSurface, provider: Provider) -> dict[str, Any]:
     """Render an McpSurface into the `mcpServers` entry shape used across providers."""
+    root = mcp_root(provider)
+    cwd = root if provider is Provider.CLAUDE else "./"
+
+    def under_root(rel: str) -> str:
+        # Codex/Kimi keep the bare relative path they already resolve correctly.
+        return f"{root}/{rel}" if provider is Provider.CLAUDE else rel
+
     if m.package.startswith("python:"):
         module_path = m.package.removeprefix("python:")
         entry: dict[str, Any] = {
             "command": "uv",
-            "args": ["run", "python", module_path, *m.args],
-            "cwd": "./",
+            "args": ["run", "python", under_root(module_path), *m.args],
+            "cwd": cwd,
         }
     elif m.package.startswith("module:"):
         module = m.package.removeprefix("module:")
         entry = {
             "command": "uv",
-            "args": ["run", "--project", ".", "python", "-m", module, *m.args],
-            "cwd": "./",
+            "args": ["run", "--project", root, "python", "-m", module, *m.args],
+            "cwd": cwd,
         }
     elif m.package.startswith("node:"):
         script = m.package.removeprefix("node:")
-        entry = {"command": "node", "args": [script, *m.args], "cwd": "./"}
+        entry = {"command": "node", "args": [under_root(script), *m.args], "cwd": cwd}
     else:
-        entry = {"command": m.package, "args": list(m.args), "cwd": "./"}
+        entry = {"command": m.package, "args": list(m.args), "cwd": cwd}
     if m.env:
         entry["env"] = {k: f"${{{k}}}" for k in m.env}
     return entry
@@ -56,7 +75,7 @@ def render_mcp_entry(m: McpSurface) -> dict[str, Any]:
 
 def render_mcp_servers(spec: ForgeSpec, provider: Provider) -> dict[str, Any]:
     active = spec.surfaces_for_provider(provider).mcp
-    return {m.name: render_mcp_entry(m) for m in active}
+    return {m.name: render_mcp_entry(m, provider) for m in active}
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> Path:

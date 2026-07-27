@@ -2,6 +2,12 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.5] - 2026-07-27
+
+- Fixed generated Claude Code MCP launchers to anchor `--project` and `cwd` on `${CLAUDE_PLUGIN_ROOT}`. Claude Code spawns plugin MCP servers with the session working directory rather than the plugin directory, so the previous relative `.` resolved into the user's repo and the server exited with `ModuleNotFoundError`.
+- Codex and Kimi MCP output is byte-identical to 0.2.4; both hosts already resolve relative paths against the plugin root.
+- Added regression coverage asserting the Claude manifest is root-anchored and the Codex manifest stays relative.
+
 ## [0.2.4] - 2026-07-27
 
 - Fixed generated module MCP launchers to use `uv run --project .` instead of editable-installing the host working directory.

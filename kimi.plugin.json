@@ -1,6 +1,6 @@
 {
   "name": "plugin-forge",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.",
   "author": {
     "name": "0langa"

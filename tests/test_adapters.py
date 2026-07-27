@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from plugin_forge.adapters import render_all, render_for_provider
@@ -45,6 +46,27 @@ def test_kimi_inlines_mcp(sample_spec: ForgeSpec) -> None:
     assert out["mcpServers"]["demo"]["command"] == "uv"
     assert out["mcpServers"]["demo"]["args"][:3] == ["run", "--project", "."]
     assert "--with-editable" not in out["mcpServers"]["demo"]["args"]
+
+
+def test_claude_mcp_is_anchored_to_plugin_root(sample_spec: ForgeSpec, tmp_path: Path) -> None:
+    """Claude Code spawns plugin MCP servers with the session cwd, not the plugin
+    dir, so a relative `--project .` resolves into the user's repo and the server
+    dies with ModuleNotFoundError. Every path must go through ${CLAUDE_PLUGIN_ROOT}."""
+    render_all(sample_spec, tmp_path)
+    entry = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]["demo"]
+    assert entry["cwd"] == "${CLAUDE_PLUGIN_ROOT}"
+    assert entry["args"][:3] == ["run", "--project", "${CLAUDE_PLUGIN_ROOT}"]
+    assert "." not in entry["args"]
+
+
+def test_codex_mcp_keeps_relative_paths(sample_spec: ForgeSpec, tmp_path: Path) -> None:
+    """Codex resolves relative paths against the plugin root already; keep its
+    output unchanged so the Claude fix cannot regress Codex."""
+    render_all(sample_spec, tmp_path)
+    entry = json.loads((tmp_path / ".codex-mcp.json").read_text(encoding="utf-8"))["mcpServers"]["demo"]
+    assert entry["cwd"] == "./"
+    assert entry["args"][:3] == ["run", "--project", "."]
+    assert "${CLAUDE_PLUGIN_ROOT}" not in json.dumps(entry)
 
 
 def test_render_all_writes_files(sample_spec: ForgeSpec, tmp_path: Path) -> None:

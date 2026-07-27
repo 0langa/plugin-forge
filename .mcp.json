@@ -5,12 +5,12 @@
       "args": [
         "run",
         "--project",
-        ".",
+        "${CLAUDE_PLUGIN_ROOT}",
         "python",
         "-m",
         "plugin_forge.mcp_server"
       ],
-      "cwd": "./"
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }
