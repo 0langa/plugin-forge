@@ -2,6 +2,12 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.3] - 2026-07-27
+
+- Removed workstation-specific names and paths from public documentation, source comments, and test fixtures.
+- Added regression coverage preventing private Windows identity data from entering tracked files.
+- Made hook entrypoints self-bootstrap their source tree when invoked directly by provider runtimes.
+
 ## [0.2.2] - 2026-07-13
 
 - Removed duplicate Claude hook declaration and rely on standard `hooks/hooks.json` autodiscovery.

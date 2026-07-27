@@ -13,7 +13,7 @@ import pytest
 
 from plugin_forge import importer
 
-PULSE = Path("C:/Users/Julius/source/repos/usage-pulse")
+PULSE = Path("C:/Users/ExampleUser/source/repos/usage-pulse")
 
 
 pytestmark = pytest.mark.skipif(not PULSE.exists(), reason="usage-pulse repo not checked out")

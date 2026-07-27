@@ -3,7 +3,7 @@
 Each provider discovers plugins through a distinct mechanism. Forge cannot
 install a plugin by only patching `settings.json` (that only wires MCP +
 hooks, not discovery). What follows was verified against the official docs
-and Julius's live environment on 2026-07-03:
+and a live Windows environment on 2026-07-03:
 
 Claude Code
     Documented install path is a marketplace. Forge maintains a "forge-local"
@@ -18,14 +18,14 @@ Codex
     Documented model: `~/.codex/config.toml` with `[marketplaces.<name>]`
     (`source_type = "local"`, `source = "<path>"`) plus a `[plugins."<name>@<marketplace>"]`
     section with `enabled = true`. Forge writes both. Verified against the
-    live `[marketplaces.0langas-personal]` block on Julius's box.
+    live `[marketplaces.0langas-personal]` block on a Windows host.
 
 Kimi Code
     Documented model: `~/.kimi-code/plugins/installed.json` v1 with entries
     `{id, root, source, enabled, ...}`; `source: "local-path"` is the
     documented "install-from-a-directory" flow. Forge's registrar writes the
     same shape used by every other 0langas plugin already installed via that
-    flow on Julius's box.
+    flow on a Windows host.
 
 Registrars are non-transactional today: they take a `.forge-backup.<ts>`
 snapshot before modifying, but do not chain into the settings.json patcher's

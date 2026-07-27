@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from plugin_forge.hooks._safe import cwd_from_payload_or_env, emit_banner, guard
-from plugin_forge.spec import ForgeSpec
 
 
 def _run() -> None:
@@ -29,6 +31,8 @@ def _run() -> None:
 
     if st.has_forge_yaml and st.drift:
         try:
+            from plugin_forge.spec import ForgeSpec
+
             spec = ForgeSpec.load(st.repo / "forge.yaml")
             report = sync.fix(spec, st.repo)
             if report.fixed:

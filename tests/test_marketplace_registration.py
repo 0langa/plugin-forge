@@ -106,7 +106,7 @@ def test_no_op_when_already_current(tmp_path: Path) -> None:
     assert any("up to date" in n for n in result["notes"])
 
 
-REAL_MKT = Path("C:/Users/Julius/source/repos/0langas-plugin-marketplace")
+REAL_MKT = Path("C:/Users/ExampleUser/source/repos/0langas-plugin-marketplace")
 
 
 @pytest.mark.skipif(not REAL_MKT.exists(), reason="real marketplace repo missing")

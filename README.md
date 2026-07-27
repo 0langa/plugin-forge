@@ -217,7 +217,7 @@ forge audit
 ## Install forge itself
 
 ```bash
-git clone https://github.com/0langa/plugin-forge C:/Users/Julius/source/repos/0langa-plugin-forge
+git clone https://github.com/0langa/plugin-forge C:/Users/ExampleUser/source/repos/0langa-plugin-forge
 cd plugin-forge
 uv venv
 uv pip install -e ".[dev]"

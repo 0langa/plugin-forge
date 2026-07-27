@@ -140,3 +140,10 @@ def test_codex_hooks_are_cross_platform() -> None:
             for hook in group["hooks"]:
                 assert "uv run --project \"$root\" python" in hook["command"], hook
                 assert "uv run --project $root python" in hook["commandWindows"], hook
+
+
+def test_hook_scripts_bootstrap_source_tree_for_direct_execution() -> None:
+    hook_dir = Path(__file__).resolve().parents[1] / "src" / "plugin_forge" / "hooks"
+    for name in ("session_start.py", "post_tool_use.py", "user_prompt_submit.py"):
+        source = (hook_dir / name).read_text(encoding="utf-8")
+        assert "sys.path.insert(0, str(Path(__file__).resolve().parents[2]))" in source

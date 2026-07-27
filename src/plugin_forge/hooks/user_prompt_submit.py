@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from plugin_forge.hooks._safe import cwd_from_payload_or_env, guard
 
