@@ -43,7 +43,8 @@ def test_kimi_inlines_mcp(sample_spec: ForgeSpec) -> None:
     assert isinstance(out["mcpServers"], dict)
     assert "demo" in out["mcpServers"]
     assert out["mcpServers"]["demo"]["command"] == "uv"
-    assert out["mcpServers"]["demo"]["args"][:3] == ["run", "--with-editable", "."]
+    assert out["mcpServers"]["demo"]["args"][:3] == ["run", "--project", "."]
+    assert "--with-editable" not in out["mcpServers"]["demo"]["args"]
 
 
 def test_render_all_writes_files(sample_spec: ForgeSpec, tmp_path: Path) -> None:

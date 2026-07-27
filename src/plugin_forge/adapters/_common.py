@@ -41,7 +41,7 @@ def render_mcp_entry(m: McpSurface) -> dict[str, Any]:
         module = m.package.removeprefix("module:")
         entry = {
             "command": "uv",
-            "args": ["run", "--with-editable", ".", "python", "-m", module, *m.args],
+            "args": ["run", "--project", ".", "python", "-m", module, *m.args],
             "cwd": "./",
         }
     elif m.package.startswith("node:"):

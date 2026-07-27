@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.4] - 2026-07-27
+
+- Fixed generated module MCP launchers to use `uv run --project .` instead of editable-installing the host working directory.
+- Added regression coverage preventing `--with-editable` from returning to provider MCP manifests.
+
 ## [0.2.3] - 2026-07-27
 
 - Removed workstation-specific names and paths from public documentation, source comments, and test fixtures.
