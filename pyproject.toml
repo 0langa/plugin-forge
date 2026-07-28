@@ -1,6 +1,6 @@
 [project]
 name = "plugin-forge"
-version = "0.2.5"
+version = "0.2.6"
 description = "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation: MCP + hooks keep plugin manifests, installs, versions, and marketplace state coherent while you edit source."
 authors = [{ name = "0langa" }]
 license = { text = "MIT" }

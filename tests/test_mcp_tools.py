@@ -51,6 +51,34 @@ def test_compile_tool_writes_manifests(sample_spec: ForgeSpec, tmp_path: Path) -
         assert provider_key in result["written"]
 
 
+def test_mcp_dev_renders_portable_local_launcher(
+    sample_spec: ForgeSpec, tmp_path: Path
+) -> None:
+    sample_spec.dump(tmp_path / "forge.yaml")
+
+    result = mcp_server.mcp_dev(path=str(tmp_path))
+
+    assert result["servers"] == [
+        {
+            "name": "demo",
+            "cwd": str(tmp_path),
+            "entry": {
+                "command": "uv",
+                "args": [
+                    "run",
+                    "--project",
+                    ".",
+                    "python",
+                    "-m",
+                    "demo.mcp_server",
+                ],
+                "cwd": "./",
+                "env": {"DEMO_HOME": "${DEMO_HOME}"},
+            },
+        }
+    ]
+
+
 def test_import_repo_tool_produces_spec(
     sample_spec: ForgeSpec, tmp_path: Path
 ) -> None:

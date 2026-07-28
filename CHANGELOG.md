@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.6] - 2026-07-28
+
+- Fixed `mcp_dev` to render its local launcher with the Codex-relative provider context instead of raising a missing-argument `TypeError`.
+- Added direct regression coverage for the returned MCP launcher shape.
+
 ## [0.2.5] - 2026-07-27
 
 - Fixed generated Claude Code MCP launchers to anchor `--project` and `cwd` on `${CLAUDE_PLUGIN_ROOT}`. Claude Code spawns plugin MCP servers with the session working directory rather than the plugin directory, so the previous relative `.` resolved into the user's repo and the server exited with `ModuleNotFoundError`.

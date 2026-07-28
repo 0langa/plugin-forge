@@ -230,7 +230,7 @@ def mcp_dev(path: str | None = None, name: str | None = None) -> dict[str, Any]:
             {
                 "name": s.name,
                 "cwd": str(repo),
-                "entry": render_mcp_entry(s),
+                "entry": render_mcp_entry(s, Provider.CODEX),
             }
             for s in servers
         ]
