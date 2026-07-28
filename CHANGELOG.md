@@ -2,6 +2,10 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.7] - 2026-07-28
+
+- Synchronized `uv.lock` with release metadata so clean cached installs resolve Plugin Forge as `0.2.7`.
+
 ## [0.2.6] - 2026-07-28
 
 - Fixed `mcp_dev` to render its local launcher with the Codex-relative provider context instead of raising a missing-argument `TypeError`.
