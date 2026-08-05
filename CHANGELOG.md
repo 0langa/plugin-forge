@@ -2,6 +2,10 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.12] - 2026-08-05
+
+- Pending release notes.
+
 ## [0.2.11] - 2026-08-05
 
 - Preserve an existing Kimi plugin's enabled or disabled state when refreshing its managed copy.

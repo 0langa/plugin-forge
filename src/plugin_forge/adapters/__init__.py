@@ -46,4 +46,7 @@ def render_all(spec: ForgeSpec, out_root: Path) -> dict[Provider, Path]:
         result[Provider.CODEX] = write_codex(spec, out_root)
     if Provider.KIMI in spec.providers:
         result[Provider.KIMI] = write_kimi(spec, out_root)
+        from ._common import write_kimi_uv_mcp_launcher
+
+        write_kimi_uv_mcp_launcher(spec, out_root)
     return result

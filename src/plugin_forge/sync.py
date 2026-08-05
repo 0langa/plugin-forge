@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Any, cast
 
 from plugin_forge.adapters import render_for_provider
+from plugin_forge.adapters._common import (
+    KIMI_UV_MCP_LAUNCHER,
+    kimi_uv_mcp_launcher_path,
+    needs_kimi_uv_mcp_launcher,
+)
 from plugin_forge.spec import ForgeSpec, Provider
 
 
@@ -71,6 +76,17 @@ def check(spec: ForgeSpec, repo: Path) -> SyncReport:
                     provider=provider,
                     kind="manifest_drift",
                     message=_diff_summary(current, expected),
+                )
+            )
+    if needs_kimi_uv_mcp_launcher(spec):
+        launcher = kimi_uv_mcp_launcher_path(repo)
+        current_launcher = launcher.read_text(encoding="utf-8") if launcher.exists() else None
+        if current_launcher != KIMI_UV_MCP_LAUNCHER:
+            report.drift.append(
+                DriftItem(
+                    provider=Provider.KIMI,
+                    kind="kimi_uv_launcher_drift",
+                    message=str(launcher),
                 )
             )
     return report

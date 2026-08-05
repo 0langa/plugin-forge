@@ -43,8 +43,15 @@ def test_kimi_inlines_mcp(sample_spec: ForgeSpec) -> None:
     out = render_for_provider(sample_spec, Provider.KIMI)
     assert isinstance(out["mcpServers"], dict)
     assert "demo" in out["mcpServers"]
-    assert out["mcpServers"]["demo"]["command"] == "uv"
-    assert out["mcpServers"]["demo"]["args"][:3] == ["run", "--project", "."]
+    assert out["mcpServers"]["demo"]["command"] == "cmd.exe"
+    assert out["mcpServers"]["demo"]["args"] == [
+        "/d",
+        "/s",
+        "/c",
+        "scripts\\kimi-uv-mcp.cmd",
+        "-m",
+        "demo.mcp_server",
+    ]
     assert "--with-editable" not in out["mcpServers"]["demo"]["args"]
 
 
@@ -76,4 +83,9 @@ def test_render_all_writes_files(sample_spec: ForgeSpec, tmp_path: Path) -> None
     assert (tmp_path / "kimi.plugin.json").exists()
     assert (tmp_path / ".mcp.json").exists()
     assert (tmp_path / ".codex-mcp.json").exists()
+    launcher = tmp_path / "scripts" / "kimi-uv-mcp.cmd"
+    assert launcher.exists()
+    content = launcher.read_text(encoding="utf-8")
+    assert "%USERPROFILE%\\.local\\bin\\uv.exe" in content
+    assert '"%UV_EXE%" run --project "%~dp0.." python %*' in content
     assert Provider.CLAUDE in written

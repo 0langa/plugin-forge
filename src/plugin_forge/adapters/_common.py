@@ -8,6 +8,42 @@ from typing import Any
 
 from plugin_forge.spec import ForgeSpec, McpSurface, Provider
 
+KIMI_UV_MCP_LAUNCHER = """@echo off
+setlocal EnableExtensions
+set "UV_EXE="
+if defined UV_EXE if exist "%UV_EXE%" goto run
+if exist "%USERPROFILE%\\.local\\bin\\uv.exe" set "UV_EXE=%USERPROFILE%\\.local\\bin\\uv.exe"
+if not defined UV_EXE for %%I in (uv.exe) do if not "%%~$PATH:I"=="" set "UV_EXE=%%~$PATH:I"
+if not defined UV_EXE (
+  >&2 echo uv.exe not found. Install uv or add %%USERPROFILE%%\\.local\\bin to PATH.
+  exit /b 9009
+)
+:run
+"%UV_EXE%" run --project "%~dp0.." python %*
+"""
+
+
+def needs_kimi_uv_mcp_launcher(spec: ForgeSpec) -> bool:
+    """Return whether Kimi needs the generated Windows uv launcher."""
+    return Provider.KIMI in spec.providers and any(
+        m.package.startswith(("python:", "module:"))
+        for m in spec.surfaces_for_provider(Provider.KIMI).mcp
+    )
+
+
+def kimi_uv_mcp_launcher_path(root: Path) -> Path:
+    return root / "scripts" / "kimi-uv-mcp.cmd"
+
+
+def write_kimi_uv_mcp_launcher(spec: ForgeSpec, root: Path) -> Path | None:
+    """Write Kimi's portable uv launcher when a Python MCP surface needs it."""
+    if not needs_kimi_uv_mcp_launcher(spec):
+        return None
+    path = kimi_uv_mcp_launcher_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(KIMI_UV_MCP_LAUNCHER, encoding="utf-8", newline="\r\n")
+    return path
+
 
 def base_header(spec: ForgeSpec) -> dict[str, Any]:
     """Fields common to every provider manifest."""
@@ -49,9 +85,23 @@ def render_mcp_entry(m: McpSurface, provider: Provider) -> dict[str, Any]:
         # Codex/Kimi keep the bare relative path they already resolve correctly.
         return f"{root}/{rel}" if provider is Provider.CLAUDE else rel
 
-    if m.package.startswith("python:"):
-        module_path = m.package.removeprefix("python:")
+    if provider is Provider.KIMI and m.package.startswith("python:"):
+        script = m.package.removeprefix("python:")
         entry: dict[str, Any] = {
+            "command": "cmd.exe",
+            "args": ["/d", "/s", "/c", r"scripts\kimi-uv-mcp.cmd", script, *m.args],
+            "cwd": cwd,
+        }
+    elif provider is Provider.KIMI and m.package.startswith("module:"):
+        module = m.package.removeprefix("module:")
+        entry = {
+            "command": "cmd.exe",
+            "args": ["/d", "/s", "/c", r"scripts\kimi-uv-mcp.cmd", "-m", module, *m.args],
+            "cwd": cwd,
+        }
+    elif m.package.startswith("python:"):
+        module_path = m.package.removeprefix("python:")
+        entry = {
             "command": "uv",
             "args": ["run", "python", under_root(module_path), *m.args],
             "cwd": cwd,

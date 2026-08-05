@@ -1,5 +1,5 @@
 name: plugin-forge
-version: 0.2.11
+version: 0.2.12
 description: Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.
 providers:
 - claude
