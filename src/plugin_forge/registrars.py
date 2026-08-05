@@ -248,6 +248,8 @@ class KimiRegistrar(Registrar):
         for i, existing in enumerate(plugins):
             if isinstance(existing, dict) and existing.get("id") == spec.name:
                 entry["installedAt"] = existing.get("installedAt", entry["installedAt"])
+                if isinstance(existing.get("enabled"), bool):
+                    entry["enabled"] = existing["enabled"]
                 plugins[i] = entry
                 break
         else:

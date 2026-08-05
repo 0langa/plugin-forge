@@ -122,6 +122,20 @@ def test_kimi_registrar_updates_existing_id(isolated_home: Path) -> None:
     assert str(isolated_home / "install-new") in demos[0]["root"]
 
 
+def test_kimi_registrar_preserves_enabled_state(isolated_home: Path) -> None:
+    r = KimiRegistrar()
+    r.register(_spec(), isolated_home / "install-old")
+    registry = json.loads(r.registry_path.read_text())
+    registry["plugins"][0]["enabled"] = False
+    r.registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    r.register(_spec(), isolated_home / "install-new")
+
+    updated = json.loads(r.registry_path.read_text())
+    demo = next(p for p in updated["plugins"] if p["id"] == "demo")
+    assert demo["enabled"] is False
+
+
 def test_kimi_registrar_unregister(isolated_home: Path) -> None:
     r = KimiRegistrar()
     r.register(_spec(), isolated_home / "install")

@@ -2,6 +2,10 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.11] - 2026-08-05
+
+- Preserve an existing Kimi plugin's enabled or disabled state when refreshing its managed copy.
+
 ## [0.2.10] - 2026-08-05
 
 - Refresh `uv.lock` after version bump so locked CI environments resolve the released package metadata.
