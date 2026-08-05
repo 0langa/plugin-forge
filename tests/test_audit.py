@@ -76,3 +76,17 @@ def test_mcp_registration_detected() -> None:
     report = audit.run()
     inst = next(p for p in report.installed if p.name == "demo")
     assert inst.mcp_registered is True
+
+
+def test_kimi_audit_honors_kimi_code_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    kimi_home = tmp_path / "kimi-home"
+    managed = kimi_home / "plugins" / "managed" / "demo"
+    manifest = managed / "kimi.plugin.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(json.dumps({"name": "demo", "version": "0.1.0"}), encoding="utf-8")
+    monkeypatch.setenv("KIMI_CODE_HOME", str(kimi_home))
+
+    report = audit.run()
+
+    plugin = next(p for p in report.installed if p.provider is Provider.KIMI and p.name == "demo")
+    assert plugin.path == managed

@@ -101,7 +101,7 @@ goes through a marketplace or skills-directory plugin discovery.
 
 Do not add Kimi hook blocks directly to `config.toml` for plugin hooks. Kimi
 plugin hooks live in `kimi.plugin.json`; install state lives in
-`~/.kimi-code/plugins/installed.json`.
+`$KIMI_CODE_HOME/plugins/installed.json` (default `~/.kimi-code`).
 
 Do not add global Codex MCP blocks for a plugin whose `.codex-plugin/plugin.json`
 already points to bundled MCP configuration. Enable the plugin instead.

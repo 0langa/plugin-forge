@@ -11,7 +11,7 @@ MCP server + hooks that keep plugins for **Claude Code**, **Codex**, and **Kimi 
 Every non-trivial multi-provider plugin has:
 
 - 3+ manifest files (Claude `.claude-plugin/plugin.json`, Codex `.codex-plugin/plugin.json`, Kimi `kimi.plugin.json`)
-- Per-provider install directories (`~/.claude/plugins/`, `~/.codex/plugins/`, `~/.kimi-code/plugins/`)
+- Per-provider install directories (`~/.claude/plugins/`, `~/.codex/plugins/`, `$KIMI_CODE_HOME/plugins/`; default `~/.kimi-code/plugins/`)
 - Provider plugin manifests (MCP registrations, hook wiring, timeouts)
 - Version strings scattered across `pyproject.toml`, three manifests, README badges, and two marketplace JSONs
 - Hook + MCP + agent + command + skill surfaces that must stay identical across providers
@@ -180,7 +180,7 @@ forge init --name my-plugin --providers all
 # Edit forge.yaml for real surfaces and metadata
 forge compile        # emit all provider manifests
 forge sync           # verify emitted manifests match forge.yaml
-forge install        # link into ~/.claude, ~/.codex, ~/.kimi-code
+forge install        # link into ~/.claude, ~/.codex, $KIMI_CODE_HOME (default ~/.kimi-code)
 ```
 
 ### Retrofit an existing plugin
@@ -208,7 +208,7 @@ git push --tags
 
 ```bash
 forge audit
-# Lists every plugin installed under ~/.claude, ~/.codex, ~/.kimi-code
+# Lists every plugin installed under ~/.claude, ~/.codex, $KIMI_CODE_HOME (default ~/.kimi-code)
 # with version + MCP + hooks registration state, orphans, and cross-provider gaps.
 ```
 

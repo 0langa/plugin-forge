@@ -1,5 +1,5 @@
 name: plugin-forge
-version: 0.2.8
+version: 0.2.9
 description: Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.
 providers:
 - claude
@@ -42,8 +42,8 @@ install:
   kimi: ~/.kimi-code/plugins/managed/plugin-forge/
 settings_patches: {}
 marketplace:
-  claude_manifest: ../../plugins.json
-  kimi_manifest: ../../kimi-marketplace.json
+  claude_manifest: ../0langas-plugin-marketplace/plugins.json
+  kimi_manifest: ../0langas-plugin-marketplace/kimi-marketplace.json
 metadata:
   author: 0langa
   license: MIT

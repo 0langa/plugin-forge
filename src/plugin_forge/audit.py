@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
+from plugin_forge.paths import has_kimi_code_home_override, kimi_code_home
 from plugin_forge.spec import Provider
 
 PROVIDER_ROOTS = {
@@ -56,10 +57,11 @@ def run() -> AuditReport:
     report = AuditReport()
     seen: dict[str, dict[Provider, InstalledPlugin]] = {}
 
-    for provider, root in PROVIDER_ROOTS.items():
+    for provider, configured_root in PROVIDER_ROOTS.items():
+        root = _provider_root(provider, configured_root)
         if not root.is_dir():
             continue
-        settings = _load_json(PROVIDER_SETTINGS[provider])
+        settings = _load_json(_provider_settings(provider))
         for entry in sorted(root.iterdir()):
             if not entry.is_dir():
                 continue
@@ -93,6 +95,18 @@ def run() -> AuditReport:
         if missing:
             report.missing_across[name] = missing
     return report
+
+
+def _provider_root(provider: Provider, configured_root: Path) -> Path:
+    if provider is Provider.KIMI and has_kimi_code_home_override():
+        return kimi_code_home() / "plugins" / "managed"
+    return configured_root
+
+
+def _provider_settings(provider: Provider) -> Path:
+    if provider is Provider.KIMI and has_kimi_code_home_override():
+        return kimi_code_home() / "settings.json"
+    return PROVIDER_SETTINGS[provider]
 
 
 def _find_manifest(plugin_dir: Path, provider: Provider) -> Path | None:

@@ -21,6 +21,7 @@ Codex
     live `[marketplaces.0langas-personal]` block on a Windows host.
 
 Kimi Code
+    `KIMI_CODE_HOME` overrides the default `~/.kimi-code` data root.
     Documented model: `~/.kimi-code/plugins/installed.json` v1 with entries
     `{id, root, source, enabled, ...}`; `source: "local-path"` is the
     documented "install-from-a-directory" flow. Forge's registrar writes the
@@ -50,6 +51,7 @@ except ImportError:  # pragma: no cover
 
 import tomli_w
 
+from plugin_forge.paths import kimi_code_home
 from plugin_forge.spec import ForgeSpec, Provider
 
 DEFAULT_MARKETPLACE = "forge-local"
@@ -222,7 +224,7 @@ class KimiRegistrar(Registrar):
 
     @property
     def registry_path(self) -> Path:
-        return Path.home() / ".kimi-code" / "plugins" / "installed.json"
+        return kimi_code_home() / "plugins" / "installed.json"
 
     def register(
         self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None

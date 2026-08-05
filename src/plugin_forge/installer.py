@@ -26,6 +26,7 @@ from typing import Any, cast
 
 from plugin_forge import patcher
 from plugin_forge.adapters import render_all
+from plugin_forge.paths import kimi_code_home, resolve_install_path
 from plugin_forge.registrars import registrar_for
 from plugin_forge.spec import ForgeSpec, Provider
 
@@ -79,7 +80,7 @@ def install(
     target = _resolve_target(spec, provider)
     if not target:
         raise ValueError(f"install target for {provider.value} not defined in forge.yaml")
-    target = _absolute_without_following_links(target.expanduser())
+    target = _absolute_without_following_links(target)
 
     if not dry_run:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -91,7 +92,7 @@ def install(
     manifest_paths = render_all(spec, target if not dry_run else Path("/tmp/forge-dryrun"))
     manifest = manifest_paths.get(provider) or target
 
-    settings_target = PROVIDER_SETTINGS.get(provider)
+    settings_target = _settings_target(provider)
     settings_patched = False
     if spec.settings_patches and settings_target is not None:
         patch = _resolve_settings_patch(spec, provider, target)
@@ -148,9 +149,9 @@ def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True)
     target = _resolve_target(spec, provider)
     if not target:
         return False
-    target = _absolute_without_following_links(target.expanduser())
+    target = _absolute_without_following_links(target)
 
-    settings_target = PROVIDER_SETTINGS.get(provider)
+    settings_target = _settings_target(provider)
     if settings_target and settings_target.exists():
         patcher.unapply(spec.name, settings_target)
 
@@ -170,7 +171,13 @@ def uninstall(spec: ForgeSpec, provider: Provider, *, remove_files: bool = True)
 
 def _resolve_target(spec: ForgeSpec, provider: Provider) -> Path | None:
     raw = spec.install.for_provider(provider)
-    return Path(raw) if raw else None
+    return resolve_install_path(raw, provider) if raw else None
+
+
+def _settings_target(provider: Provider) -> Path | None:
+    if provider is Provider.KIMI:
+        return kimi_code_home() / "settings.json"
+    return PROVIDER_SETTINGS.get(provider)
 
 
 def _absolute_without_following_links(path: Path) -> Path:

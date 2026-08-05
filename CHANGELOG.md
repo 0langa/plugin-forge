@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.9] - 2026-08-05
+
+- Honor `KIMI_CODE_HOME` for Kimi install targets, install registry updates, uninstall, and installed-plugin audits.
+- Point this repository's marketplace checks at sibling `0langas-plugin-marketplace` catalogs instead of the parent source directory.
+
 ## [0.2.8] - 2026-08-05
 
 - Aligned runtime version metadata with generated provider manifests.

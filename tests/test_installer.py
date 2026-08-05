@@ -62,3 +62,22 @@ def test_uninstall_reverts_settings(sample_spec: ForgeSpec, tmp_path: Path) -> N
     data = json.loads(settings.read_text()) if settings.exists() else {}
     assert "mcpServers" not in data
     assert not (target / ".forge-link").exists()
+
+
+def test_kimi_install_honors_kimi_code_home(
+    sample_spec: ForgeSpec, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "source"
+    repo.mkdir()
+    (repo / "skill.md").write_text("body\n", encoding="utf-8")
+    kimi_home = tmp_path / "kimi-home"
+    monkeypatch.setenv("KIMI_CODE_HOME", str(kimi_home))
+    sample_spec.providers = [Provider.KIMI]
+    sample_spec.install = InstallTargets(kimi="~/.kimi-code/plugins/managed/demo/")
+
+    report = installer.install(sample_spec, repo, Provider.KIMI, mode=Mode.COPY)
+
+    expected_target = kimi_home / "plugins" / "managed" / "demo"
+    assert report.target == expected_target
+    assert report.registry_path == kimi_home / "plugins" / "installed.json"
+    assert report.registry_path.exists()
