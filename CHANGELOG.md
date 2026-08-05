@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.8] - 2026-08-05
+
+- Aligned runtime version metadata with generated provider manifests.
+- Hardened local sibling-plugin round-trip discovery and version regression coverage.
+
 ## [0.2.7] - 2026-07-28
 
 - Synchronized `uv.lock` with release metadata so clean cached installs resolve Plugin Forge as `0.2.7`.

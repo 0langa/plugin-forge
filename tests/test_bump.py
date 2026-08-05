@@ -26,7 +26,13 @@ def test_apply_bump_updates_all_files(sample_spec: ForgeSpec, tmp_path: Path) ->
     (tmp_path / "pyproject.toml").write_text(
         '[project]\nname = "demo"\nversion = "0.3.1"\n', encoding="utf-8"
     )
+    runtime = tmp_path / "src" / "demo" / "__init__.py"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text('__version__ = "0.3.1"\n', encoding="utf-8")
     render_all(sample_spec, tmp_path)
+    (tmp_path / "plugin.json").write_text(
+        '{"name": "demo", "version": "0.3.1"}\n', encoding="utf-8"
+    )
     (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n## [0.3.1] - 2026-01-01\n", encoding="utf-8")
 
     result = bump.apply_bump(tmp_path / "forge.yaml", level="minor")
@@ -40,6 +46,10 @@ def test_apply_bump_updates_all_files(sample_spec: ForgeSpec, tmp_path: Path) ->
     assert claude["version"] == "0.4.0"
     kimi = json.loads((tmp_path / "kimi.plugin.json").read_text())
     assert kimi["version"] == "0.4.0"
+    assert '__version__ = "0.4.0"' in runtime.read_text(encoding="utf-8")
+    legacy = json.loads((tmp_path / "plugin.json").read_text())
+    assert legacy["version"] == "0.4.0"
+    assert "- Pending release notes." in (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
 
 
 def test_apply_bump_idempotent(sample_spec: ForgeSpec, tmp_path: Path) -> None:
