@@ -2,6 +2,10 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.10] - 2026-08-05
+
+- Refresh `uv.lock` after version bump so locked CI environments resolve the released package metadata.
+
 ## [0.2.9] - 2026-08-05
 
 - Honor `KIMI_CODE_HOME` for Kimi install targets, install registry updates, uninstall, and installed-plugin audits.
