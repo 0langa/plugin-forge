@@ -1,7 +1,7 @@
 """Integration test: forge should round-trip usage-pulse without semantic drift.
 
-Skipped when the pulse repo isn't checked out at the expected location — this
-test targets local development, not CI.
+Skipped when the sibling pulse checkout is unavailable — this test targets
+local development, not CI.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import pytest
 
 from plugin_forge import importer
 
-PULSE = Path("C:/Users/ExampleUser/source/repos/usage-pulse")
+PULSE = Path(__file__).resolve().parents[2] / "usage-pulse"
 
 
 pytestmark = pytest.mark.skipif(not PULSE.exists(), reason="usage-pulse repo not checked out")
@@ -38,10 +38,11 @@ def test_importer_preserves_provider_extras() -> None:
     spec = importer.sniff(PULSE)
     claude = spec.provider_extras.claude
     assert claude.get("defaultEnabled") is True
+    assert spec.metadata.get("repository") == "https://github.com/0langa/usage-pulse"
     kimi_manifest = json.loads((PULSE / "kimi.plugin.json").read_text())
     for key in kimi_manifest:
         if key in {
-            "name", "version", "description", "author", "homepage", "license",
+            "name", "version", "description", "author", "homepage", "repository", "license",
             "keywords", "skills", "commands", "mcpServers", "hooks", "sessionStart",
             "interface", "skillInstructions",
         }:
@@ -66,9 +67,9 @@ def test_importer_dedups_stop_hooks() -> None:
 
 
 def test_provider_options_shared_mcp_detected() -> None:
-    """usage-pulse uses one .mcp.json for both Claude and Codex."""
+    """Usage Pulse needs provider-specific MCP launchers for root resolution."""
     spec = importer.sniff(PULSE)
-    assert spec.options.shared_mcp_file is True
+    assert spec.options.shared_mcp_file is False
 
 
 def test_sync_check_after_import_and_compile(tmp_path: Path) -> None:

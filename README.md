@@ -240,7 +240,8 @@ Forge owns plugin-level operations: manifests, installs, MCP wiring, hooks, vers
 
 Alpha. See [CHANGELOG.md](CHANGELOG.md).
 
-- 94 unit + integration tests passing
+- 102 unit + integration tests, including local round-trip coverage when sibling plugin sources are available
+- CI defines compile, Ruff, mypy, and pytest gates across Windows and Linux
 - Round-trip verified against real `usage-pulse` plugin
 - Live install verification: pending on your machine
 
