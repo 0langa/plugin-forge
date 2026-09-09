@@ -212,6 +212,8 @@ forge audit
 # with version + MCP + hooks registration state, orphans, and cross-provider gaps.
 ```
 
+The audit includes versioned Claude and Codex marketplace caches and Kimi managed plugins. Cache entries are labeled as copies; their presence does not establish the active version or whether the plugin is enabled. Codex global MCP registration is read from `config.toml`, and standard Claude `hooks/hooks.json` files are recognized automatically.
+
 ---
 
 ## Install forge itself

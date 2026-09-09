@@ -2,6 +2,12 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.13] - 2026-09-09
+
+- Discover versioned Claude and Codex marketplace cache copies during installed-plugin audits, and exclude provider infrastructure directories from orphan findings.
+- Read Codex MCP registration from `config.toml` and recognize Claude's standard automatic hook discovery.
+- Label cached versions explicitly; cache presence does not establish the active version or enabled state.
+
 ## [0.2.12] - 2026-08-05
 
 - Pending release notes.

@@ -8,6 +8,7 @@ and hook wiring, and flags orphans and cross-provider gaps.
 from __future__ import annotations
 
 import json
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -23,7 +24,7 @@ PROVIDER_ROOTS = {
 
 PROVIDER_SETTINGS = {
     Provider.CLAUDE: Path.home() / ".claude" / "settings.json",
-    Provider.CODEX: Path.home() / ".codex" / "settings.json",
+    Provider.CODEX: Path.home() / ".codex" / "config.toml",
     Provider.KIMI: Path.home() / ".kimi-code" / "settings.json",
 }
 
@@ -61,12 +62,30 @@ def run() -> AuditReport:
         root = _provider_root(provider, configured_root)
         if not root.is_dir():
             continue
-        settings = _load_json(_provider_settings(provider))
-        for entry in sorted(root.iterdir()):
+        settings_path = _provider_settings(provider)
+        settings = (
+            tomllib.loads(settings_path.read_text(encoding="utf-8-sig"))
+            if settings_path.suffix == ".toml" and settings_path.exists()
+            else _load_json(settings_path)
+        )
+        entries = list(root.iterdir())
+        cache = root / "cache"
+        if provider in (Provider.CLAUDE, Provider.CODEX) and cache.is_dir():
+            entries.extend(
+                version
+                for marketplace in cache.iterdir() if marketplace.is_dir()
+                for plugin in marketplace.iterdir() if plugin.is_dir()
+                for version in plugin.iterdir() if version.is_dir()
+            )
+        for entry in sorted(entries):
             if not entry.is_dir():
                 continue
             manifest = _find_manifest(entry, provider)
             if manifest is None:
+                if entry.parent == root and (
+                    entry.name.startswith(".") or entry.name in {"cache", "data", "marketplaces"}
+                ):
+                    continue
                 report.orphans.append(entry)
                 continue
             data = _load_json(manifest)
@@ -74,7 +93,7 @@ def run() -> AuditReport:
             version = str(data.get("version", "?"))
             is_link = (entry / ".forge-link").exists()
             mcp_ok = _mcp_registered(name, settings, data)
-            hooks_ok = _hooks_registered(entry, settings, data)
+            hooks_ok = _hooks_registered(entry, settings, data, provider)
             plugin = InstalledPlugin(
                 provider=provider,
                 name=name,
@@ -84,6 +103,8 @@ def run() -> AuditReport:
                 mcp_registered=mcp_ok,
                 hooks_registered=hooks_ok,
             )
+            if cache in entry.parents:
+                plugin.notes.append("versioned marketplace cache copy; active version not inferred")
             if data and not name:
                 plugin.notes.append("manifest missing 'name'")
             report.installed.append(plugin)
@@ -128,14 +149,16 @@ def _load_json(path: Path) -> dict[str, Any]:
 def _mcp_registered(name: str, settings: dict[str, Any], manifest: dict[str, Any]) -> bool:
     if "mcpServers" in manifest:
         return True
-    servers = settings.get("mcpServers")
+    servers = settings.get("mcpServers", settings.get("mcp_servers"))
     return isinstance(servers, dict) and name in servers
 
 
 def _hooks_registered(
-    plugin_dir: Path, settings: dict[str, Any], manifest: dict[str, Any]
+    plugin_dir: Path, settings: dict[str, Any], manifest: dict[str, Any], provider: Provider
 ) -> bool:
     if "hooks" in manifest:
+        return True
+    if provider is Provider.CLAUDE and (plugin_dir / "hooks" / "hooks.json").is_file():
         return True
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):

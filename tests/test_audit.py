@@ -90,3 +90,42 @@ def test_kimi_audit_honors_kimi_code_home(tmp_path: Path, monkeypatch: pytest.Mo
 
     plugin = next(p for p in report.installed if p.provider is Provider.KIMI and p.name == "demo")
     assert plugin.path == managed
+
+
+def test_marketplace_caches_are_discovered_without_orphaning_provider_storage() -> None:
+    for provider in (Provider.CLAUDE, Provider.CODEX):
+        root = audit.PROVIDER_ROOTS[provider]
+        for name in ("data", "marketplaces", ".plugin-appserver"):
+            (root / name).mkdir()
+        for version in ("0.9.0", "1.0.0"):
+            plugin = root / "cache" / "market" / "demo" / version
+            manifest = plugin.joinpath(*audit.MANIFEST_NAMES[provider])
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(json.dumps({"name": "demo", "version": version}), encoding="utf-8")
+    _plant(Provider.KIMI, "demo", "1.0.0")
+    report = audit.run()
+    assert len([p for p in report.installed if p.name == "demo"]) == 5
+    assert "demo" not in report.missing_across
+    assert report.orphans == []
+    assert all(p.notes for p in report.installed if p.provider is not Provider.KIMI)
+
+
+def test_codex_toml_and_claude_autodiscovered_hooks_are_recognized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codex = _plant(Provider.CODEX, "demo", "1.0.0")
+    settings = tmp_path / "config.toml"
+    settings.write_text('[mcp_servers.demo]\ncommand = "example"\n', encoding="utf-8")
+    monkeypatch.setitem(audit.PROVIDER_SETTINGS, Provider.CODEX, settings)
+    claude = _plant(Provider.CLAUDE, "demo", "1.0.0")
+    (claude / "hooks").mkdir()
+    (claude / "hooks" / "hooks.json").write_text('{"hooks": {}}', encoding="utf-8")
+    # A dual-provider package's Claude hooks do not register Codex hooks.
+    (codex / ".claude-plugin").mkdir()
+    (codex / ".claude-plugin" / "plugin.json").write_text('{"name": "demo"}', encoding="utf-8")
+    (codex / "hooks").mkdir()
+    (codex / "hooks" / "hooks.json").write_text('{"hooks": {}}', encoding="utf-8")
+    report = audit.run()
+    assert next(p for p in report.installed if p.provider is Provider.CODEX).mcp_registered
+    assert not next(p for p in report.installed if p.provider is Provider.CODEX).hooks_registered
+    assert next(p for p in report.installed if p.provider is Provider.CLAUDE).hooks_registered
