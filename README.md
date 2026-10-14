@@ -167,6 +167,8 @@ hooks/codex-hooks.json        # hook wiring for Codex
 
 Emitted hook commands use the official runtime root variables: `CLAUDE_PLUGIN_ROOT` for Claude, `PLUGIN_ROOT` for Codex, and `KIMI_PLUGIN_ROOT` for Kimi. Compatibility fallbacks are only used where provider docs expose them.
 
+Claude Code has no Windows-only hook field: it runs a hook's `command` through `sh` on macOS and Linux and through Git Bash on Windows. Claude hooks therefore get one POSIX `command` and no `commandWindows` (that field is Codex's). The command starts the hook through `uv`, never `python3` (on Windows often only the Microsoft Store stub), and uses `~/.local/bin/uv` when `uv` is not on PATH.
+
 ---
 
 ## Quick start
@@ -182,6 +184,15 @@ forge compile        # emit all provider manifests
 forge sync           # verify emitted manifests match forge.yaml
 forge install        # link into ~/.claude, ~/.codex, $KIMI_CODE_HOME (default ~/.kimi-code)
 ```
+
+For Claude Code, `forge install` also copies the plugin into the forge-local marketplace at `~/.plugin-forge/marketplaces/claude/forge-local/plugins/<name>/` and lists it there as `./plugins/<name>`. Claude Code only accepts a `./` path inside the marketplace as a string source. Add the marketplace once and install from it:
+
+```bash
+claude plugin marketplace add ~/.plugin-forge/marketplaces/claude/forge-local
+claude plugin install my-plugin@forge-local
+```
+
+Claude Code reads the plugin from that copy, so run `forge install --provider claude` again after editing the plugin to refresh it.
 
 ### Retrofit an existing plugin
 
