@@ -2,6 +2,14 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.15] - 2026-10-15
+
+- The forge-local Claude marketplace now lists each plugin as a `./plugins/<name>` path, the only string source Claude Code accepts. `forge install --provider claude` copies the plugin to `~/.plugin-forge/marketplaces/claude/forge-local/plugins/<name>/` and lists that copy. Installing again refreshes the copy and keeps its `.venv`, and uninstalling removes it. Before, each entry held the repo's absolute path, and `claude plugin validate` rejected it.
+- Generated Claude hooks now work on Windows on their own. Claude Code ignores `commandWindows`, so Claude hooks get one POSIX `command`, which Claude Code runs through Git Bash on Windows and `sh` elsewhere. It starts the hook through `uv`, never `python3` (on Windows often only the Microsoft Store stub), and falls back to `~/.local/bin/uv` when `uv` is not on PATH. Codex hooks keep their `commandWindows`.
+- Upgrade: run `forge install --provider claude` again for each plugin you registered with Claude Code, so its entry moves to the `./plugins/<name>` form. Entries written by 0.2.14 or earlier keep their absolute path until then, and `claude plugin validate` flags them. Then add the marketplace once with `claude plugin marketplace add ~/.plugin-forge/marketplaces/claude/forge-local` and install with `claude plugin install <name>@forge-local`.
+- Upgrade: Claude Code now reads that copy, not your repo, so run `forge install --provider claude` again after editing a forge plugin.
+- Upgrade: other forge-managed plugins get the new hook command on their next `forge compile`. Until then their `hooks/hooks.json` keeps the old form, and `forge sync` reports no drift for it, because it does not compare hooks files. On Windows the new command needs Git for Windows, because Claude Code runs hooks through Git Bash.
+
 ## [0.2.14] - 2026-10-14
 
 - Lock patched versions of three transitive dependencies of `mcp[crypto]` (pyjwt 2.15.1, anyio 4.15.1, cryptography 50.0.2), clearing 19 known advisories. Direct dependency ranges are unchanged.
