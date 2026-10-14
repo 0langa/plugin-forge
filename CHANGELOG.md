@@ -2,6 +2,11 @@
 
 All notable changes to plugin-forge.
 
+## [0.2.14] - 2026-10-14
+
+- Lock patched versions of three transitive dependencies of `mcp[crypto]` (pyjwt 2.15.1, anyio 4.15.1, cryptography 50.0.2), clearing 19 known advisories. Direct dependency ranges are unchanged.
+- Keep the test suite out of the real home directory: install tests no longer add a `demo` entry and `.forge-backup.*` copies to the forge-local Claude marketplace under `~/.plugin-forge`.
+
 ## [0.2.13] - 2026-09-09
 
 - Discover versioned Claude and Codex marketplace cache copies during installed-plugin audits, and exclude provider infrastructure directories from orphan findings.
