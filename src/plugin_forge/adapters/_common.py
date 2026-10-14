@@ -138,20 +138,32 @@ def _render_args(args: list[str]) -> str:
     return "" if not args else " " + " ".join(json.dumps(arg) for arg in args)
 
 
+# Where uv's standalone installer puts uv on every OS (`uv.exe` on Windows,
+# which Git Bash finds without the suffix). A host started before uv joined
+# PATH, or a GUI host with a short PATH, still finds it there.
+UV_FALLBACK = "$HOME/.local/bin/uv"
+
+
 def render_hook_command(
     script: str, provider: Provider, args: list[str] | None = None
 ) -> str:
     """Render a script-path hook into the inline shell command shape hosts expect.
 
-    Claude receives a portable shell command. Kimi keeps its inline Python
-    launcher because its manifest has no separate Windows-command field.
+    Claude has no Windows-only command field (`commandWindows` is Codex's): it
+    runs `command` through `sh` on macOS and Linux and through Git Bash on
+    Windows. So the one POSIX command must work in Git Bash on its own. It
+    starts the hook through uv, which never calls `python3` (on Windows often
+    only the Microsoft Store stub), and falls back to uv's default install
+    location when uv is not on PATH. Kimi keeps its inline Python launcher
+    because its manifest has no separate Windows-command field.
     """
     script_norm = script.replace("\\", "/")
     hook_args = list(args or [])
     if provider is Provider.CLAUDE:
         return (
             'root="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}"; '
-            f'uv run --project "$root" python "$root/{script_norm}"'
+            f'uv=uv; command -v uv >/dev/null 2>&1 || uv="{UV_FALLBACK}"; '
+            f'"$uv" run --project "$root" python "$root/{script_norm}"'
             f"{_render_args(hook_args)}"
         )
     root_expr = {
@@ -167,13 +179,12 @@ def render_hook_command(
     )
 
 
-def render_hook_command_windows(script: str, provider: Provider, args: list[str]) -> str:
+def render_hook_command_windows(script: str, args: list[str]) -> str:
+    """Codex's PowerShell `commandWindows`; Claude has no such field."""
     script_norm = script.replace("/", "\\")
-    primary = "CLAUDE_PLUGIN_ROOT" if provider is Provider.CLAUDE else "PLUGIN_ROOT"
-    secondary = "PLUGIN_ROOT" if provider is Provider.CLAUDE else "CLAUDE_PLUGIN_ROOT"
     return (
-        f"$root = if ($env:{primary}) {{ $env:{primary} }} "
-        f"elseif ($env:{secondary}) {{ $env:{secondary} }} "
+        "$root = if ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } "
+        "elseif ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } "
         "else { (Get-Location).Path }; "
         f"uv run --project $root python (Join-Path $root '{script_norm}')"
         f"{_render_args(args)}"
@@ -187,7 +198,7 @@ def render_codex_hook_commands(script: str, args: list[str]) -> dict[str, str]:
             'root="${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"; '
             f'uv run --project "$root" python "$root/{script_norm}"{_render_args(args)}'
         ),
-        "commandWindows": render_hook_command_windows(script, Provider.CODEX, args),
+        "commandWindows": render_hook_command_windows(script, args),
     }
 
 
@@ -206,11 +217,8 @@ def render_hook_entries(spec: ForgeSpec, provider: Provider) -> list[dict[str, A
         elif provider is Provider.CODEX:
             entry.update(render_codex_hook_commands(h.script or "", hook_args))
         else:
+            # Claude ignores `commandWindows`, so it gets `command` only.
             entry["command"] = render_hook_command(h.script or "", provider, hook_args)
-            if provider is Provider.CLAUDE:
-                entry["commandWindows"] = render_hook_command_windows(
-                    h.script or "", provider, hook_args
-                )
         matcher = h.matchers.get(provider, h.matcher)
         if matcher:
             entry["matcher"] = matcher

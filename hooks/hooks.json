@@ -5,8 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/session_start.py\"",
-            "commandWindows": "$root = if ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } elseif ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src\\plugin_forge\\hooks\\session_start.py')"
+            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv=uv; command -v uv >/dev/null 2>&1 || uv=\"$HOME/.local/bin/uv\"; \"$uv\" run --project \"$root\" python \"$root/src/plugin_forge/hooks/session_start.py\""
           }
         ]
       }
@@ -16,8 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/post_tool_use.py\"",
-            "commandWindows": "$root = if ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } elseif ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src\\plugin_forge\\hooks\\post_tool_use.py')"
+            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv=uv; command -v uv >/dev/null 2>&1 || uv=\"$HOME/.local/bin/uv\"; \"$uv\" run --project \"$root\" python \"$root/src/plugin_forge/hooks/post_tool_use.py\""
           }
         ]
       }
@@ -27,8 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv run --project \"$root\" python \"$root/src/plugin_forge/hooks/user_prompt_submit.py\"",
-            "commandWindows": "$root = if ($env:CLAUDE_PLUGIN_ROOT) { $env:CLAUDE_PLUGIN_ROOT } elseif ($env:PLUGIN_ROOT) { $env:PLUGIN_ROOT } else { (Get-Location).Path }; uv run --project $root python (Join-Path $root 'src\\plugin_forge\\hooks\\user_prompt_submit.py')"
+            "command": "root=\"${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-$PWD}}\"; uv=uv; command -v uv >/dev/null 2>&1 || uv=\"$HOME/.local/bin/uv\"; \"$uv\" run --project \"$root\" python \"$root/src/plugin_forge/hooks/user_prompt_submit.py\""
           }
         ]
       }

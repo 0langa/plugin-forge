@@ -7,12 +7,17 @@ and a live Windows environment on 2026-07-03:
 
 Claude Code
     Documented install path is a marketplace. Forge maintains a "forge-local"
-    marketplace file (`.claude-plugin/marketplace.json` per official schema at
-    https://code.claude.com/docs/en/plugin-marketplaces) that lists every
-    forge-managed plugin with a `source` pointing at the source repo. Forge
-    does not touch `installed_plugins.json` (internal cache). Actual install
-    is done by `claude plugin install <name>@forge-local` — either the user
-    runs it once or forge invokes the CLI as a subprocess.
+    marketplace directory (`.claude-plugin/marketplace.json` per the official
+    schema at https://code.claude.com/docs/en/plugins/marketplace-reference)
+    that lists every forge-managed plugin. A string `source` must be a path
+    inside the marketplace root that starts with `./`: an absolute path fails
+    validation (`must start with "./"`), and a link to a folder outside the
+    root installs but fails to load (`Path escapes plugin directory`). So
+    forge copies each plugin to `plugins/<name>/` under the root and lists it
+    as `./plugins/<name>`; registering again refreshes that copy. Forge does
+    not touch `installed_plugins.json` (internal cache). The user adds the
+    marketplace once (`claude plugin marketplace add <root>`) and installs
+    with `claude plugin install <name>@forge-local`.
 
 Codex
     Documented model: `~/.codex/config.toml` with `[marketplaces.<name>]`
@@ -37,6 +42,7 @@ being unique.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import time
 from abc import ABC, abstractmethod
@@ -55,6 +61,26 @@ from plugin_forge.paths import kimi_code_home
 from plugin_forge.spec import ForgeSpec, Provider
 
 DEFAULT_MARKETPLACE = "forge-local"
+
+# Claude Code's plugin-name rule: letters, digits, ".", "_" and "-", starting
+# with a letter or digit, and no "..". It also keeps the copy inside plugins/.
+_CLAUDE_PLUGIN_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+# Left out of the Claude marketplace copy, and kept in it when the copy is
+# refreshed (the hook command's `uv run` builds `.venv` inside the copy).
+CLAUDE_COPY_IGNORE = (
+    ".git",
+    ".venv",
+    ".venv-*",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    "*.egg-info",
+    ".forge-link",
+)
 
 
 @dataclass
@@ -94,21 +120,29 @@ class ClaudeRegistrar(Registrar):
     provider = Provider.CLAUDE
 
     @property
+    def marketplace_root(self) -> Path:
+        """The directory that holds `.claude-plugin/`; relative sources resolve from it."""
+        return Path.home() / ".plugin-forge" / "marketplaces" / "claude" / DEFAULT_MARKETPLACE
+
+    @property
     def registry_path(self) -> Path:
-        return (
-            Path.home()
-            / ".plugin-forge"
-            / "marketplaces"
-            / "claude"
-            / DEFAULT_MARKETPLACE
-            / ".claude-plugin"
-            / "marketplace.json"
-        )
+        return self.marketplace_root / ".claude-plugin" / "marketplace.json"
+
+    def plugin_dir(self, name: str) -> Path:
+        """Where the marketplace keeps its copy of plugin `name`."""
+        if not _CLAUDE_PLUGIN_NAME.fullmatch(name) or ".." in name:
+            raise ValueError(
+                f"Claude Code cannot install a plugin named {name!r}: use letters, digits, "
+                "'.', '_' and '-', starting with a letter or digit"
+            )
+        return self.marketplace_root / "plugins" / name
 
     def register(
         self, spec: ForgeSpec, install_dir: Path, source_dir: Path | None = None
     ) -> RegistrarReport:
         registry = self.registry_path
+        copy = self.plugin_dir(spec.name)
+        _refresh_copy(source_dir or install_dir, copy)
         registry.parent.mkdir(parents=True, exist_ok=True)
         data = _load_json(registry) or {
             "name": DEFAULT_MARKETPLACE,
@@ -117,13 +151,14 @@ class ClaudeRegistrar(Registrar):
         }
         data["name"] = DEFAULT_MARKETPLACE
         data.setdefault("owner", {"name": "0langa"})
+        data.setdefault("description", "Plugins registered locally by plugin-forge")
         plugins = data.setdefault("plugins", [])
         if not isinstance(plugins, list):
             plugins = []
             data["plugins"] = plugins
         entry: dict[str, Any] = {
             "name": spec.name,
-            "source": str(source_dir or install_dir),
+            "source": "./" + copy.relative_to(self.marketplace_root).as_posix(),
             "description": spec.description or spec.name,
             "version": spec.version,
         }
@@ -159,7 +194,41 @@ class ClaudeRegistrar(Registrar):
         self._backup(registry)
         data["plugins"] = keep
         registry.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        if _CLAUDE_PLUGIN_NAME.fullmatch(name) and ".." not in name:
+            copy = self.plugin_dir(name)
+            if copy.is_symlink():
+                copy.unlink()
+            elif copy.is_dir():
+                shutil.rmtree(copy)
         return True
+
+
+def _refresh_copy(source: Path, copy: Path) -> None:
+    """Make `copy` hold the current files of `source`.
+
+    Entries matching CLAUDE_COPY_IGNORE are neither copied nor removed, so the
+    `.venv` that a hook's `uv run` built inside the copy survives a refresh.
+    """
+    source = source.resolve()
+    if not source.is_dir():
+        raise FileNotFoundError(f"plugin source directory not found: {source}")
+    if copy.is_symlink():
+        copy.unlink()
+    target = copy.resolve()
+    if target.is_relative_to(source) or source.is_relative_to(target):
+        raise ValueError(f"the marketplace copy {copy} overlaps the plugin source {source}")
+    ignore = shutil.ignore_patterns(*CLAUDE_COPY_IGNORE)
+    if copy.is_dir():
+        children = list(copy.iterdir())
+        kept = ignore(str(copy), [child.name for child in children])
+        for child in children:
+            if child.name in kept:
+                continue
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+    shutil.copytree(source, copy, ignore=ignore, dirs_exist_ok=True)
 
 
 class CodexRegistrar(Registrar):
