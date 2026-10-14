@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,11 @@ def test_link_install_creates_marker(sample_spec: ForgeSpec, tmp_path: Path, fak
     # The Claude registrar must write its forge-local marketplace under the fake home.
     assert report.registry_path is not None
     assert fake_home in report.registry_path.parents
+    # Claude loads the copy inside the marketplace that the "./plugins/demo" source names.
+    marketplace = json.loads(report.registry_path.read_text(encoding="utf-8"))
+    assert [p["source"] for p in marketplace["plugins"]] == ["./plugins/demo"]
+    copy = report.registry_path.parent.parent / "plugins" / "demo"
+    assert (copy / "src" / "code.py").read_text(encoding="utf-8") == "x = 1\n"
 
 
 def test_link_install_noops_when_target_resolves_to_repo(tmp_path: Path) -> None:
@@ -61,8 +67,7 @@ def test_uninstall_reverts_settings(sample_spec: ForgeSpec, tmp_path: Path) -> N
     installer.install(sample_spec, repo, Provider.CLAUDE, mode=Mode.LINK)
     installer.uninstall(sample_spec, Provider.CLAUDE)
     settings = installer.PROVIDER_SETTINGS[Provider.CLAUDE]
-    import json
-    data = json.loads(settings.read_text()) if settings.exists() else {}
+    data =json.loads(settings.read_text()) if settings.exists() else {}
     assert "mcpServers" not in data
     assert not (target / ".forge-link").exists()
 
