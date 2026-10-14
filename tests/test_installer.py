@@ -19,7 +19,7 @@ def isolate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(installer.PROVIDER_SETTINGS, Provider.KIMI, settings_dir / "kimi.json")
 
 
-def test_link_install_creates_marker(sample_spec: ForgeSpec, tmp_path: Path) -> None:
+def test_link_install_creates_marker(sample_spec: ForgeSpec, tmp_path: Path, fake_home: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()
@@ -34,6 +34,9 @@ def test_link_install_creates_marker(sample_spec: ForgeSpec, tmp_path: Path) -> 
     assert target.exists()
     assert target.is_symlink() or (target / ".forge-link").exists() or (target / "src" / "code.py").exists()
     assert report.settings_patched
+    # The Claude registrar must write its forge-local marketplace under the fake home.
+    assert report.registry_path is not None
+    assert fake_home in report.registry_path.parents
 
 
 def test_link_install_noops_when_target_resolves_to_repo(tmp_path: Path) -> None:
