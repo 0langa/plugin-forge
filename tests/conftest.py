@@ -16,6 +16,22 @@ from plugin_forge.spec import (
 )
 
 
+@pytest.fixture(autouse=True)
+def fake_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Keep every test out of the real home directory.
+
+    Registrars resolve `~/.plugin-forge`, `~/.codex` and the Kimi home when
+    they run, so without this an `installer.install()` test writes a
+    forge-local marketplace entry (plus backups) into the developer's profile.
+    """
+    home = tmp_path_factory.mktemp("home")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.delenv("KIMI_CODE_HOME", raising=False)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    return home
+
+
 @pytest.fixture
 def sample_spec() -> ForgeSpec:
     return ForgeSpec(
