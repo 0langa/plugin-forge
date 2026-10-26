@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.16 - 2026-10-26
+
+- Mark the plugin dormant while keeping existing functionality and installation IDs.
+- Publish through https://github.com/0langa/plugins; Kimi compatibility is legacy.
+
 All notable changes to plugin-forge.
 
 ## [0.2.15] - 2026-10-15

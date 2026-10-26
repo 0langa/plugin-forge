@@ -1,5 +1,8 @@
 # plugin-forge
 
+> **Dormant:** Available as-is, with no planned updates. This plugin is no longer part of my maintained workflow. Existing releases remain installable.
+> Kimi compatibility is legacy and is not actively tested.
+
 **Multi-provider AI-coding plugin lifecycle automation.**
 
 MCP server + hooks that keep plugins for **Claude Code**, **Codex**, and **Kimi Code** automatically coherent while you edit source. One canonical `forge.yaml` per plugin drives version bumps, manifest generation, cross-provider installs, marketplace registration, and parity enforcement. Zero-touch during normal work.

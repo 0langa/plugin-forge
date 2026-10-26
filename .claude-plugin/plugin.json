@@ -1,7 +1,7 @@
 {
   "name": "plugin-forge",
-  "version": "0.2.15",
-  "description": "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.",
+  "version": "0.2.16",
+  "description": "Dormant: Generate plugin manifests and coordinate releases across coding agents.",
   "author": {
     "name": "0langa"
   },

@@ -1,7 +1,7 @@
 {
   "name": "plugin-forge",
-  "version": "0.2.15",
-  "description": "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation.",
+  "version": "0.2.16",
+  "description": "Dormant: Generate plugin manifests and coordinate releases across coding agents.",
   "author": {
     "name": "0langa"
   },
@@ -20,8 +20,8 @@
   "commands": "./commands/",
   "interface": {
     "displayName": "Plugin Forge",
-    "shortDescription": "Cross-provider plugin lifecycle automation.",
-    "longDescription": "Automate plugin manifest generation, install, versioning, and marketplace registration across Claude Code, Codex, and Kimi Code. Zero-touch drift correction driven by hooks + MCP.",
+    "shortDescription": "Dormant: Generate plugin manifests and coordinate releases across coding agents.",
+    "longDescription": "Dormant: Generate plugin manifests and coordinate releases across coding agents. Available as-is, with no planned updates. Kimi compatibility is legacy.",
     "developerName": "0langa",
     "category": "Developer Tools",
     "capabilities": [

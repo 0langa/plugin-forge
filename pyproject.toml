@@ -1,7 +1,7 @@
 [project]
 name = "plugin-forge"
-version = "0.2.15"
-description = "Multi-provider (Claude Code / Codex / Kimi Code) plugin lifecycle automation: MCP + hooks keep plugin manifests, installs, versions, and marketplace state coherent while you edit source."
+version = "0.2.16"
+description = "Dormant: Generate plugin manifests and coordinate releases across coding agents."
 authors = [{ name = "0langa" }]
 license = { text = "MIT" }
 readme = "README.md"
